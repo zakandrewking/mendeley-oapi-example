@@ -52,7 +52,6 @@ Example usage:
  u'title': u'NoSQL(EU) Write Up',
  u'year': 2010}
 """
-from pprint import pprint
 import oauth2 as oauth
 import pickle
 import httplib
@@ -61,7 +60,8 @@ import urllib
 
 class OAuthClient(object):
     """General purpose OAuth client"""
-    def __init__(self, consumer_key, consumer_secret, options = {}):
+    def __init__(self, consumer_key, consumer_secret, options=None):
+        if options == None: options = {}
         # Set values based on provided options, or revert to defaults
         self.host = options.get('host', 'api.mendeley.com')
         self.port = options.get('port', 80)
@@ -122,8 +122,8 @@ class OAuthClient(object):
         return token 
     
     def authorize(self, token, callback_url = "oob"):
-        http_url='http://%s%s' % (self.authority, self.authorize_url)
-        request = oauth.Request.from_token_and_callback(token=token, callback=callback_url, http_url='http://%s%s' % (self.authority, self.authorize_url))
+        url = 'http://%s%s' % (self.authority, self.authorize_url)
+        request = oauth.Request.from_token_and_callback(token=token, callback=callback_url, http_url=url)
         return request.to_url()
 
     def access_token(self, request_token):
@@ -497,7 +497,8 @@ class MendeleyClient(object):
         for method, details in self.methods.items():
             setattr(self, method, MendeleyRemoteMethod(details, self.api_request))
 
-    def api_request(self, url, access_token_required = False, method = 'get', params = {}):
+    def api_request(self, url, access_token_required=False, method='get', params=None):
+        if params == None: params = {}
         if access_token_required: access_token = self.access_token
         else: access_token = None
         
