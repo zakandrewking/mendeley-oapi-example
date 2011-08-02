@@ -178,11 +178,25 @@ class MendeleyRemoteMethod(object):
         response = self.callback(url, self.details.get('access_token_required', False), self.details.get('method', 'get'), optional_args)
         status = response.status
         body = response.read()
-        if status == 500:
-            raise Exception(body)
-        if status != 204:
+        content_type = response.getheader("Content-Type")
+        ct = content_type.split("; ")
+        mime = ct[0]
+        try:
+            content_disposition = response.getheader("Content-Disposition")
+            cd = content_disposition.split("; ")
+            attached = cd[0]
+            filename = cd[1].split("=")
+            filename = filename[1].strip('"')
+        except:
+            pass
+
+        if mime == 'application/json':
             data = json.loads(body)
             return data
+        elif attached == 'attachment':
+            return {'filename': filename, 'data': body}
+        else:
+            return response
 
 class MendeleyClient(object):
     # API method definitions. Used to create MendeleyRemoteMethod instances
@@ -287,6 +301,18 @@ class MendeleyClient(object):
             'access_token_required': True,
             'method': 'put'
 	},
+        'download_file': {
+            'url': '/oapi/library/documents/%(id)s/file/%(hash)s/',
+            'required': ['id', 'hash'],
+            'access_token_required': True,
+            'method': 'get'
+        },
+        'download_file_group': {
+            'url': '/oapi/library/documents/%(id)s/file/%(hash)s/%(group)s/',
+            'required': ['id', 'hash', 'group'],
+            'access_token_required': True,
+            'method': 'get'
+        },
         'document_details': {
             'url': '/oapi/library/documents/%(id)s/',
             'required': ['id'],
