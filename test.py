@@ -274,6 +274,14 @@ folderId = response['folder_id']
 print """
 
 -----------------------------------------------------
+Create new child folder
+-----------------------------------------------------"""
+response = mendeley.create_folder(folder=json.dumps({'name': 'Test child folder creation', 'parent':folderId}))
+pprint(response)
+
+print """
+
+-----------------------------------------------------
 List folders
 -----------------------------------------------------"""
 folders = mendeley.folders()
@@ -309,6 +317,40 @@ print """
 Create private group
 -----------------------------------------------------"""
 response = mendeley.create_group(group=json.dumps({'name':'Private group test', 'type': 'private'}))
+pprint(response)
+groupId = response['group_id']
+
+print """
+
+-----------------------------------------------------
+Create new group folder
+-----------------------------------------------------"""
+response = mendeley.create_group_folder(groupId, folder=json.dumps({'name': 'Test folder creation'}))
+pprint(response)
+folderId = response['folder_id']
+
+print """
+
+-----------------------------------------------------
+Create new child group folder
+-----------------------------------------------------"""
+response = mendeley.create_group_folder(groupId, folder=json.dumps({'name': 'Test child folder creation', 'parent':folderId}))
+pprint(response)
+
+print """
+
+-----------------------------------------------------
+List group folders
+-----------------------------------------------------"""
+folders = mendeley.group_folders(groupId)
+pprint(folders)
+
+print """
+
+-----------------------------------------------------
+Delete group folder
+-----------------------------------------------------"""
+response = mendeley.delete_group_folder(groupId, folderId)
 pprint(response)
 
 print """
