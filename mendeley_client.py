@@ -181,6 +181,7 @@ class MendeleyRemoteMethod(object):
         content_type = response.getheader("Content-Type")
         ct = content_type.split("; ")
         mime = ct[0]
+        attached = None
         try:
             content_disposition = response.getheader("Content-Disposition")
             cd = content_disposition.split("; ")
@@ -191,7 +192,11 @@ class MendeleyRemoteMethod(object):
             pass
 
         if mime == 'application/json':
-            data = json.loads(body)
+	    # HTTP Status 204 means 'No Content' which json.loads cannot deal with
+            if status == 204:
+                data = ''
+            else:
+                data = json.loads(body)
             return data
         elif attached == 'attachment':
             return {'filename': filename, 'data': body}
@@ -433,6 +438,45 @@ class MendeleyClient(object):
             'access_token_required': True,
             'method': 'delete',
         },
+        # Group Folders methods #
+        'group_folders': {
+            'url': '/oapi/library/groups/%(group_id)s/folders/',
+            'required': ['group_id'],
+            'access_token_required': True,
+        },
+        'group_folder_documents': {
+            'url': '/oapi/library/groups/%(group_id)s/folders/%(id)s/',
+            'required': ['group_id', 'id'],
+            'optional': ['page', 'items'],
+            'access_token_required': True,
+        },
+        'create_group_folder': {
+            'url': '/oapi/library/groups/%(group_id)s/folders/',
+            'required': ['group_id'],
+            # HACK: 'collection' is required, but by making it optional here it'll get POSTed
+            # Unfortunately that means it needs to be a named param when calling this method
+            'optional': ['folder'],
+            'access_token_required': True,
+            'method': 'post',
+        },
+        'delete_group_folder': {
+            'url': '/oapi/library/groups/%(group_id)s/folders/%(id)s/',
+            'required': ['group_id', 'id'],
+            'access_token_required': True,
+            'method': 'delete',
+        },
+        'add_document_to_group_folder': {
+            'url': '/oapi/library/groups/%(group_id)s/folders/%(folder_id)s/%(document_id)s/',
+            'required': ['group_id', 'folder_id', 'document_id'],
+            'access_token_required': True,
+            'method': 'post',
+        },
+        'delete_document_from_group_folder': {
+            'url': '/oapi/library/groups/%(group_id)s/folders/%(folder_id)s/%(document_id)s/',
+            'required': ['group_id', 'folder_id', 'document_id'],
+            'access_token_required': True,
+            'method': 'delete',
+        },
         ######## DEPRECATED METHODS ########
         # Deprecated
         'collections': {
@@ -517,8 +561,8 @@ class MendeleyClient(object):
         }
     }
 
-    def __init__(self, consumer_key, consumer_secret):
-        self.mendeley = OAuthClient(consumer_key, consumer_secret)
+    def __init__(self, consumer_key, consumer_secret, options=None):
+        self.mendeley = OAuthClient(consumer_key, consumer_secret, options)
         # Create methods for all of the API calls    
         for method, details in self.methods.items():
             setattr(self, method, MendeleyRemoteMethod(details, self.api_request))
