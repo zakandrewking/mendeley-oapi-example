@@ -363,7 +363,7 @@ class MendeleyClient(object):
         },
         'create_folder': {
             'url': '/oapi/library/folders/',
-            # HACK: 'collection' is required, but by making it optional here it'll get POSTed
+            # HACK: 'folder' is required, but by making it optional here it'll get POSTed
             # Unfortunately that means it needs to be a named param when calling this method
             'optional': ['folder'],
             'access_token_required': True,
@@ -453,7 +453,7 @@ class MendeleyClient(object):
         'create_group_folder': {
             'url': '/oapi/library/groups/%(group_id)s/folders/',
             'required': ['group_id'],
-            # HACK: 'collection' is required, but by making it optional here it'll get POSTed
+            # HACK: 'folder' is required, but by making it optional here it'll get POSTed
             # Unfortunately that means it needs to be a named param when calling this method
             'optional': ['folder'],
             'access_token_required': True,
