@@ -298,14 +298,6 @@ pprint(response)
 print """
 
 -----------------------------------------------------
-Create public invite only group
------------------------------------------------------"""
-response = mendeley.create_group(group=json.dumps({'name':'Public invite only group', 'type': 'invite'}))
-pprint(response)
-
-print """
-
------------------------------------------------------
 Create public open group
 -----------------------------------------------------"""
 response = mendeley.create_group(group=json.dumps({'name':'My awesome public group', 'type': 'open'}))
@@ -352,6 +344,16 @@ Delete group folder
 -----------------------------------------------------"""
 response = mendeley.delete_group_folder(groupId, folderId)
 pprint(response)
+
+print """
+
+-----------------------------------------------------
+Current user's profile infos
+-----------------------------------------------------"""
+
+response = mendeley.my_profile_info()
+pprint(response)
+
 
 print """
 
