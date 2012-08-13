@@ -618,11 +618,11 @@ class MendeleyClient(object):
         self.request_token.set_verifier(verifier)
         self.access_token = self.mendeley.access_token(self.request_token)
     
-    def load_keys(self):
-        data = pickle.load(open('mendeley_api_keys.pkl', 'r'))
+    def load_keys(self, filename='mendeley_api_keys.pkl'):
+        data = pickle.load(open(filename, 'r'))
         self.request_token = data['request_token']
         self.access_token = data['access_token']
 
-    def save_keys(self):
+    def save_keys(self,filename='mendeley_api_keys.pkl'):
         data = {'request_token': self.request_token, 'access_token': self.access_token}
-        pickle.dump(data, open('mendeley_api_keys.pkl', 'w'))
+        pickle.dump(data, open(filename, 'w'))
