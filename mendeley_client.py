@@ -159,6 +159,11 @@ class MendeleyRemoteMethod(object):
     def __init__(self, details, callback):
         self.details = details # Argument, URL and additional details.
         self.callback = callback # Callback to actually do the remote call
+
+    def serialize(self, obj):
+        if isinstance(obj,dict):
+            return json.dumps(obj)
+        return obj
     
     def __call__(self, *args, **kwargs):
         url = self.details['url']
@@ -177,7 +182,7 @@ class MendeleyRemoteMethod(object):
         optional_args = {}
         for optional in self.details.get('optional', []):
             if kwargs.has_key(optional):
-                optional_args[optional] = kwargs[optional]
+                optional_args[optional] = self.serialize(kwargs[optional])
 
         # Do the callback - will return a HTTPResponse object
         response = self.callback(url, self.details.get('access_token_required', False), self.details.get('method', 'get'), optional_args)
