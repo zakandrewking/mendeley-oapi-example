@@ -26,21 +26,31 @@ python test-download.py
 """
 
 from pprint import pprint
-from mendeley_client import MendeleyClient
+from mendeley_client import *
 import json
 import os
 import sys
 import string
 import httplib
 
+# Load the configuration file
+config = MendeleyClientConfig()
+if not config.is_valid():
+    print "Please edit config.json before running this script"
+    sys.exit(1)
 
-mendeley = MendeleyClient('<insert_consumer_key_here>', '<insert_secret_key_here>')
+# create a client and load tokens from the pkl file
+mendeley = MendeleyClient(config.api_key, config.api_secret)
+tokens_store = MendeleyTokensStore()
 
-try:
-    mendeley.load_keys()
-except IOError:
-    mendeley.get_required_keys()
-    mendeley.save_keys()
+# configure the client to use a specific token
+# if no tokens are available, prompt the user to authenticate
+access_token = tokens_store.get_access_token("test_account")
+if not access_token:
+    mendeley.interactive_auth()
+    tokens_store.add_account("test_account",mendeley.get_access_token())
+else:
+    mendeley.set_access_token(access_token)
 
 docId = raw_input('Insert document id: ')
 fileHash = raw_input('Insert file hash: ')
