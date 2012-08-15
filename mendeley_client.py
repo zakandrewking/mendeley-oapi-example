@@ -273,7 +273,7 @@ class MendeleyClientConfig:
     def load(self):
         loaded = json.loads(open(self.filename,'r').read())
         for key, value in loaded.items():
-            setattr(self, key, value)
+            setattr(self, key, value.encode("ascii"))
 
 class MendeleyClient(object):
 
