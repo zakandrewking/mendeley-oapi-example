@@ -4,6 +4,7 @@ import os
 
 parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"..")
 os.sys.path.insert(0, parent_dir) 
+
 from mendeley_client import *
 
 class TestMendeleyClient(unittest.TestCase):
@@ -13,6 +14,8 @@ class TestMendeleyClient(unittest.TestCase):
             self.client.delete_group(group["id"])
     
     def clear_folders(self):
+        folders = self.client.folders()
+        self.assertTrue("error" not in folders)
         for folder in self.client.folders():
             self.client.delete_folder(folder["id"])
 
@@ -27,13 +30,14 @@ class TestMendeleyClient(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         # Load the configuration file
-        config = MendeleyClientConfig(filename="config.json")
+        config = MendeleyClientConfig("../config.json")
         if not config.is_valid():
             print "Please edit config.json before running this script"
             sys.exit(1)
-
+        print config.api_key
+        print config.api_secret
         # create a client and load tokens from the pkl file
-        self.client = MendeleyClient(config.api_key, config.api_secret)
+        self.client = MendeleyClient(config.api_key, config.api_secret, {"host":config.host})
         tokens_store = MendeleyTokensStore()
 
         # configure the client to use a specific token
@@ -52,66 +56,66 @@ class TestMendeleyClient(unittest.TestCase):
         
     ## Test Groups ##
 
-    def test_create_group_valid(self):
-        self.client.create_group(group=json.dumps({"name":"teawdst", "type":"open"}))
-        self.client.create_group(group=json.dumps({"name":"test", "type":"open"}))
-        rep = self.client.create_group(group=json.dumps({"name":"testtt", "type":"open"}))
-        self.assertTrue("error" not in rep)
+    def test_create_open_groups(self):
+        # Check that the user can create more than 2 open groups
+        for i in range(5):
+            self.assertTrue("error" not in self.client.create_group(group={"name":"test_open_group_%d"%i, "type":"open"}))
 
     def test_create_restricted_groups(self):
-        types = ["private", "invite"]
 
+        # check that the user can't create more than 2 restricted groups
+        types = ["private", "invite"]
+        
         for group_type1 in types:
-            first_group = self.client.create_group(group=json.dumps({"name":"test", "type":group_type1}))
+            first_group = self.client.create_group(group={"name":"test", "type":group_type1})
             self.assertTrue("group_id" in first_group)
 
             for group_type2 in types:
-                response = self.client.create_group(group=json.dumps({"name":"test", "type":group_type2}))
+                response = self.client.create_group(group={"name":"test", "type":group_type2})
                 self.assertTrue("error" in response and "group" in response["error"])
             self.client.delete_group(first_group["group_id"])
    
-    def test_create_group_validI(self):
-        self.client.create_group(group=json.dumps({"name":"teawdst", "type":"open"}))
-        rep = self.client.create_group(group=json.dumps({"name":"testtt", "type":"invite"}))
-        self.assertTrue("error" not in rep)
+    def test_create_group(self):
+        # check that the user can create several open groups and one restricted group
+        types = ["private", "invite"]
+        for i in range(3):
+            self.client.create_group(group={"name":"public_group_%d"%i, "type":"open"})
+        for group_type in types:
+            response = self.client.create_group(group={"name":"test_%s"%group_type, "type":group_type})
+            self.assertTrue("error" not in response)
+            self.client.delete_group(response["group_id"])
 
-    def test_create_group_validP(self):
-        self.client.create_group(group=json.dumps({"name":"teawdst", "type":"open"}))
-        rep = self.client.create_group(group=json.dumps({"name":"testtt", "type":"private"}))
-        self.assertTrue("error" not in rep)
 
     ## Test Folder ##
 
-    def test_create_folder_invalid(self):
+    def test_create_folder_name_already_used(self):
+        # check that the user can create two folders with the same name
         self.clear_folders()
-        self.client.create_folder(folder=json.dumps({"name": "test"}))
-        rep = self.client.create_folder(folder=json.dumps({"name": "test"}))
+        self.client.create_folder(folder={"name": "test"})
+        rep = self.client.create_folder(folder={"name": "test"})
         self.assertFalse("error" in rep)
 
     def test_create_folder_valid(self):
+        # check that the user can create folder 
         folder_name = "test"
-        rep = self.client.create_folder(folder=json.dumps({"name": folder_name}))
+        rep = self.client.create_folder(folder={"name": folder_name})
         folder_id = rep["folder_id"]
         folder_ = [folder for folder in self.client.folders() if folder["id"] == folder_id]
         self.assertEquals(folder_name, folder_[0]["name"])
         
     def test_delete_folder_valid(self):
+        # check that the user can delete folder
         folder_name = "test"
-        rep = self.client.create_folder(folder=json.dumps({"name": folder_name}))
+        rep = self.client.create_folder(folder={"name": folder_name})
         folder_id = rep["folder_id"]
         resp = self.client.delete_folder(folder_id)
         self.assertTrue("error" not in rep)
 
     def test_delete_folder_invalid(self):
-        folder_name = "test"
-        rep = self.client.create_folder(folder=json.dumps({"name": folder_name}))
-        folder_id = rep["folder_id"]
-        self.assertTrue("error" in self.client.delete_folder(folder_id+"some string"))
-        self.assertTrue("error" in self.client.delete_folder("1234567890123"))
-        self.assertTrue("error" in self.client.delete_folder("-1234567890123"))
-        self.assertTrue("error" in self.client.delete_folder("-1"))
-        self.assertTrue("error" in self.client.delete_folder(""))
-        self.assertTrue("error" in self.client.delete_folder("some string"))
+        # check that the user can't delete a folder owned by an other user (or non-existent)
+        invalid_ids = ["1234567890123", "-1234567890123", "-1", "","some string"]
+        for invalid_id in invalid_ids:
+            self.assertTrue("error" in self.client.delete_folder(invalid_id))
 
     def test_parent_folder(self):
         parent_id = None
@@ -122,7 +126,7 @@ class TestMendeleyClient(unittest.TestCase):
             data={"name": "folder_%d"%i}
             if parent_id:
                 data["parent"] = parent_id
-            folder = self.client.create_folder(folder=json.dumps(data))
+            folder = self.client.create_folder(folder=data)
             self.assertTrue("folder_id" in folder)
             if parent_id:
                 self.assertTrue("parent" in folder and str(folder["parent"]) == parent_id)
@@ -143,7 +147,7 @@ class TestMendeleyClient(unittest.TestCase):
         grandparent_id = folder_ids[-2]
 
         #  Create the new folder
-        folder = self.client.create_folder(folder=json.dumps({"name":"folder_4", "parent":parent_id}))
+        folder = self.client.create_folder(folder={"name":"folder_4", "parent":parent_id})
         new_folder_id = folder["folder_id"]
         folder_ids.append(new_folder_id)
         self.assertTrue("parent" in folder and str(folder["parent"]) == parent_id)
@@ -167,30 +171,32 @@ class TestMendeleyClient(unittest.TestCase):
     ## Test Other ##
 
     def test_add_doc_to_folder_valid(self):
-        document = self.client.create_document(document=json.dumps({"type" : "Book","title": "doc_test", "year": 2025}))
+        document = self.client.create_document(document={"type" : "Book","title": "doc_test", "year": 2025})
         doc_id = document["document_id"]
-        folder = self.client.create_folder(folder=json.dumps({"name": "Test"}))
+        folder = self.client.create_folder(folder={"name": "Test"})
         folder_id = folder["folder_id"]
         response = self.client.add_document_to_folder(folder_id, doc_id)
         self.assertTrue("error" not in response )
 
     def test_add_doc_to_folder_invalid(self):
-        document = self.client.create_document(document=json.dumps({"type" : "Book","title": "doc_test", "year": 2025}))
+        document = self.client.create_document(document={"type" : "Book","title": "doc_test", "year": 2025})
         document_id = document["document_id"]
-        self.assertTrue("error" in self.client.add_document_to_folder("invalid_folder_id", document_id))
-        self.assertTrue("error" in self.client.add_document_to_folder("5", document_id))
-        self.assertTrue("error" in self.client.add_document_to_folder("-1", document_id))
-
-        folder = self.client.create_folder(folder=json.dumps({"name": "Test"}))
+        invalid_folder_ids = ["some string", "-1", "156484", "", "-2165465465"]
+        for invalid_folder_id in invalid_folder_ids:
+            self.assertTrue("error" in self.client.add_document_to_folder(invalid_folder_id, document_id))
+        
+        folder = self.client.create_folder(folder={"name": "Test"})
         self.assertTrue("error" not in folder)
 
-        folder_id = folder["folder_id"]
-        self.assertTrue("error" in self.client.add_document_to_folder(folder_id, "invalid_document_id"))
-        self.assertTrue("error" in self.client.add_document_to_folder(folder_id, "5"))
-        self.assertTrue("error" in self.client.add_document_to_folder(folder_id, "-1"))
+        invalid_document_ids = ["some string", "-1", "156484", "", "-2165465465"]
 
+        folder_id = folder["folder_id"]
+        
+        for invalid_document_id in invalid_document_ids:
+            self.assertTrue("error" in self.client.add_document_to_folder(folder_id, invalid_document_id))
+        
     def test_download_invalid(self):
-        self.assertTrue("error" in self.client.download_file("liawhawdd", "ouaawdawdd"))
+        self.assertTrue("error" in self.client.download_file("invalid", "invalid"))
 
     
 
