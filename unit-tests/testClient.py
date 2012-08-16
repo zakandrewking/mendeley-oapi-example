@@ -37,7 +37,7 @@ class TestMendeleyClient(unittest.TestCase):
         print config.api_key
         print config.api_secret
         # create a client and load tokens from the pkl file
-        self.client = MendeleyClient(config.api_key, config.api_secret, {"host":config.host})
+        self.client = MendeleyClient(config.api_key, config.api_secret})
         tokens_store = MendeleyTokensStore()
 
         # configure the client to use a specific token
