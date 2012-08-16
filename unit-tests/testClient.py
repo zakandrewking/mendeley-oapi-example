@@ -34,10 +34,8 @@ class TestMendeleyClient(unittest.TestCase):
         if not config.is_valid():
             print "Please edit config.json before running this script"
             sys.exit(1)
-        print config.api_key
-        print config.api_secret
         # create a client and load tokens from the pkl file
-        self.client = MendeleyClient(config.api_key, config.api_secret)
+        self.client = MendeleyClient(config.api_key, config.api_secret, {"host":config.host})
         tokens_store = MendeleyTokensStore()
 
         # configure the client to use a specific token
