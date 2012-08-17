@@ -9,35 +9,25 @@ os.sys.path.insert(0, parent_dir)
 from mendeley_client import *
 
 class TestEnv:
-
-    mendeley = None
-    show_times = True
+    client = None
     sleep_time = 1
-
-    @staticmethod
-    def init():
-        TestEnv.mendeley = create_client("../config_sync.json","sync_keys.pkl")
-
-def main():
-    TestEnv.init()
-    unittest.main()
 
 class TestDocumentUpdate(unittest.TestCase):
 
     # Tests
     def setUp(self):
-        self.test_document = TestEnv.mendeley.create_document(document={'type' : 'Book',
-                                                                        'title': 'Document creation test', 
-                                                                        'year': 2008})
+        self.test_document = TestEnv.client.create_document(document={'type' : 'Book',
+                                                                      'title': 'Document creation test', 
+                                                                      'year': 2008})
     def tearDown(self):
-        TestEnv.mendeley.delete_library_document(self.test_document["document_id"])  
+        TestEnv.client.delete_library_document(self.test_document["document_id"])  
 
     def update_doc(self, obj):
         document_id = self.test_document["document_id"]
-        response = TestEnv.mendeley.update_document(document_id, document=obj)  
+        response = TestEnv.client.update_document(document_id, document=obj)  
         if "error" in response:
             return False, response
-        updated_details = TestEnv.mendeley.document_details(document_id)
+        updated_details = TestEnv.client.document_details(document_id)
         return self.compare_documents(updated_details, obj), response
 
     def update_and_check(self, obj, expected_match):
@@ -100,11 +90,11 @@ class TestDocumentVersion(unittest.TestCase):
     
     # Tests
     def setUp(self):
-        self.test_document = TestEnv.mendeley.create_document(document={'type' : 'Book',
+        self.test_document = TestEnv.client.create_document(document={'type' : 'Book',
                                                                         'title': 'Document creation test', 
                                                                         'year': 2008})
     def tearDown(self):
-        TestEnv.mendeley.delete_library_document(self.test_document["document_id"])
+        TestEnv.client.delete_library_document(self.test_document["document_id"])
 
     @timed
     def test_version_returned(self):
@@ -120,7 +110,7 @@ class TestDocumentVersion(unittest.TestCase):
         # verify that the list of documents returns a version and that
         # it matches the version returned earlier
         document_id = self.test_document['document_id']
-        documents = TestEnv.mendeley.library()
+        documents = TestEnv.client.library()
         self.assertTrue(document_id in documents['document_ids'])
 
         found_document = None
@@ -132,7 +122,7 @@ class TestDocumentVersion(unittest.TestCase):
         self.assertEqual(found_document["version"], created_version)
 
         # verify that the document details have the same version
-        details = TestEnv.mendeley.document_details(document_id)
+        details = TestEnv.client.document_details(document_id)
         self.assertEqual(details["version"], created_version)
 
     @timed
@@ -141,7 +131,7 @@ class TestDocumentVersion(unittest.TestCase):
         # sleep a bit to avoid receiving the same timestamp between create and update
         time.sleep(TestEnv.sleep_time)
         current_version = self.test_document["version"]
-        response = TestEnv.mendeley.update_document(self.test_document["document_id"], document={"title":"updated title"})
+        response = TestEnv.client.update_document(self.test_document["document_id"], document={"title":"updated title"})
         self.assertTrue("version" in response)
         self.assertTrue(response["version"] > current_version)
 
@@ -150,19 +140,30 @@ class TestDocumentVersion(unittest.TestCase):
         # sleep a bit to avoid receiving the same timestamp between create and update
         time.sleep(TestEnv.sleep_time)
 
-        folder = TestEnv.mendeley.create_folder(folder={"name":"test"})
+        folder = TestEnv.client.create_folder(folder={"name":"test"})
         self.assertTrue("version" in folder)
         current_version = self.test_document["version"]
-        response = TestEnv.mendeley.add_document_to_folder(folder["folder_id"], self.test_document["document_id"])
+        response = TestEnv.client.add_document_to_folder(folder["folder_id"], self.test_document["document_id"])
 
         # verify that the document version changed
         created_version = self.test_document["version"]
-        details = TestEnv.mendeley.document_details(self.test_document["document_id"])
+        details = TestEnv.client.document_details(self.test_document["document_id"])
         self.assertTrue(details["version"] > created_version)        
 
-        TestEnv.mendeley.delete_folder(folder["folder_id"])
+        TestEnv.client.delete_folder(folder["folder_id"])
 
+def main(config_file):
+    client = create_client(config_file)
+
+    # verify that the version number is available on this server before running all the tests
+    document = TemporaryDocument(client).document()
+    if not "version" in document:
+        print "The server doesn't support functionalities required by this test yet"
+        sys.exit(1)
+
+    TestEnv.client = client
+    unittest.main()
 
 if __name__ == '__main__':
-    main()
+    main(get_config_file())
 
