@@ -1,19 +1,11 @@
-from pprint import pprint
-from synced_client import *
 import os
-import unittest
 import sys
-import time
-import datetime
-import calendar
+import unittest
 
-def skip(fn):
-
-    def wrapped(*args, **kwargs):
-        print "Skipping %s"%fn.__name__
-        return
-
-    return wrapped
+from utils import *
+parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"..")
+os.sys.path.insert(0, parent_dir) 
+from synced_client import *
 
 debug = True 
 
@@ -41,7 +33,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         return "error" not in self.sclient.client.document_details(document_id)
       
     def setUp(self):
-        self.sclient = DummySyncedClient()
+        self.sclient = DummySyncedClient("../config_sync.json")
         self.clear_library()
         self.log_file = open("/tmp/log.txt","w")
         

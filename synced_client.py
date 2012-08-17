@@ -150,8 +150,8 @@ class SimpleConflictResolver(ConflictResolver):
 
 class DummySyncedClient:
 
-    def __init__(self, conflict_resolver=SimpleConflictResolver()):
-        self.client = create_client("config_sync.json")
+    def __init__(self, config_file="config.json", conflict_resolver=SimpleConflictResolver()):
+        self.client = create_client(config_file)
         self.folders = {}
         self.documents = {}
         assert isinstance(conflict_resolver, ConflictResolver)

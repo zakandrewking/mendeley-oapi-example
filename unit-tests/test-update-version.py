@@ -1,11 +1,12 @@
-from pprint import pprint
-from mendeley_client import *
 import os
-import unittest
 import sys
 import time
-import datetime
-import calendar
+import unittest
+
+from utils import *
+parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"..")
+os.sys.path.insert(0, parent_dir) 
+from mendeley_client import *
 
 class TestEnv:
 
@@ -15,27 +16,11 @@ class TestEnv:
 
     @staticmethod
     def init():
-        TestEnv.mendeley = create_client("config_sync.json","sync_keys.pkl")
+        TestEnv.mendeley = create_client("../config_sync.json","sync_keys.pkl")
 
 def main():
     TestEnv.init()
     unittest.main()
-
-
-def timestamp():
-    n = time.gmtime()
-    return calendar.timegm(n)
-
-def timed(fn):
-
-    def wrapped(*args, **kwargs):
-        now = time.time()
-        res = fn(*args, **kwargs)
-        delta = time.time()-now
-        if TestEnv.show_times:
-            print "\n%s took\t%5.3fs"%(fn.__name__,delta)
-        return res
-    return wrapped
 
 class TestDocumentUpdate(unittest.TestCase):
 
