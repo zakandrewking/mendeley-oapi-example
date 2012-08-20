@@ -41,6 +41,11 @@ class TestDocumentsSyncing(unittest.TestCase):
             TestEnv.log_file.write("#"+"-"*len(message)+"\n\n")
             TestEnv.sclient.dump_status(TestEnv.log_file)
 
+    def sync(self):
+        self.log_status("Before sync")
+        TestEnv.sclient.sync()
+        self.log_status("After sync")        
+
     def document_exists(self, document_id):
         return "error" not in TestEnv.sclient.client.document_details(document_id)
       
@@ -59,7 +64,24 @@ class TestDocumentsSyncing(unittest.TestCase):
         # the status of all documents should be synced
         for document in TestEnv.sclient.documents.values():
             self.assertTrue(document.is_synced())
-    
+
+    def test_new_local(self):
+        count = 5
+        ids = TestEnv.seed_library(count)
+        TestEnv.sclient.sync()
+
+        # add a new local document
+        document = TestEnv.sclient.add_new_local_document({"type":"Book", "title":"new local document"})
+        self.assertTrue(document.is_new())
+        self.assertEqual(len(TestEnv.sclient.new_documents), 1)
+        self.assertEqual(len(TestEnv.sclient.documents), count)
+
+        self.sync()
+
+        self.assertTrue(document.is_synced())
+        self.assertEqual(len(TestEnv.sclient.new_documents), 0)
+        self.assertEqual(len(TestEnv.sclient.documents), count+1)
+        
     def test_local_delete(self):
         count = 5
         ids = TestEnv.seed_library(count)
@@ -80,11 +102,9 @@ class TestDocumentsSyncing(unittest.TestCase):
                 self.assertTrue(document.is_deleted())
             else:
                 self.assertTrue(document.is_synced())
-        self.log_status("After local delete")
 
         # sync the deletion
-        TestEnv.sclient.sync()
-        self.log_status("After sync")
+        self.sync()
         
         # make sure the document doesn't exist anymore 
         self.assertEqual(len(TestEnv.sclient.documents), count-1)
@@ -112,8 +132,8 @@ class TestDocumentsSyncing(unittest.TestCase):
         TestEnv.sclient.client.delete_library_document(ids[0])
         self.assertFalse(self.document_exists(ids[0]))
 
-        TestEnv.sclient.sync()
-        self.log_status("After sync")
+        self.sync()
+
         self.assertEqual(len(TestEnv.sclient.documents), count-1)
         self.assertTrue(ids[0] not in TestEnv.sclient.documents.keys())
 
@@ -139,7 +159,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         local_document.update({"title":new_local_title})
         self.assertTrue(local_document.is_modified())
 
-        TestEnv.sclient.sync()
+        self.sync()
         
         # the default conflict resolver should recreate the local version
         self.assertTrue(local_document.is_synced())
@@ -171,7 +191,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         local_document.delete()
         self.assertTrue(local_document.is_deleted())
 
-        TestEnv.sclient.sync()
+        self.sync()
         
         # the default conflict resolver should keep the server version if more recent
         self.assertTrue(local_document.is_synced())
@@ -203,9 +223,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         local_document.update({"year":new_local_year})
         self.assertTrue(local_document.is_modified())  
 
-        self.log_status("before sync")
-        TestEnv.sclient.sync()
-        self.log_status("after sync")
+        self.sync()
 
         # no conflict so both fields should be updated
         self.assertTrue(local_document.is_synced())
@@ -235,9 +253,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         local_document.update({"title":new_local_title})
         self.assertTrue(local_document.is_modified())  
 
-        self.log_status("before sync")
-        TestEnv.sclient.sync()
-        self.log_status("after sync")
+        self.sync()
 
         # default conflict resolver will choose the local version
         # TODO test different strategies
@@ -263,9 +279,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         for doc_id in ids[1:]:
             self.assertTrue(TestEnv.sclient.documents[doc_id].is_synced())
         
-        self.log_status("Before sync")
-        TestEnv.sclient.sync()
-        self.log_status("After sync")
+        self.sync()
 
         # all documents should be synced now
         for doc_id in ids:
@@ -297,7 +311,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         details = TestEnv.sclient.client.document_details(ids[0])
         self.assertEqual(details["title"], new_title)  
       
-        TestEnv.sclient.sync()
+        self.sync()
 
         # all documents should be synced
         for doc_id in ids:
