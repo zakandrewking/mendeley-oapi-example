@@ -93,7 +93,7 @@ methods = {
         'access_token_required': True,
         'method': 'post',
         },
-    'upload_pdf': {
+    '_upload_pdf': {
         'url': '/oapi/library/documents/%(id)s/',
         'required': ['id'],
         'optional': ['data', 'file_name', 'oauth_body_hash', 'sha1_hash'],
@@ -126,6 +126,7 @@ methods = {
         'required': ['id'],
         'access_token_required': True,
         'method': 'delete',
+        'expected_status':204,
         },
     'contacts': {
         'url': '/oapi/profiles/contacts/',
@@ -168,6 +169,7 @@ methods = {
         'required': ['id'],
         'access_token_required': True,
         'method': 'delete',
+        'expected_status':204,
         },
     'add_document_to_folder': {
         'url': '/oapi/library/folders/%(folder_id)s/%(document_id)s/',
@@ -180,6 +182,7 @@ methods = {
         'required': ['folder_id', 'document_id'],
         'access_token_required': True,
         'method': 'delete',
+        'expected_status':204,
         },
     # Groups methods #
     'groups': {
@@ -213,6 +216,7 @@ methods = {
         'required': ['id'],
         'access_token_required': True,
         'method': 'delete',
+        'expected_status':204,
         },
     'leave_group': {
         'url': '/oapi/library/groups/%(id)s/leave/', 
@@ -231,6 +235,7 @@ methods = {
         'required': ['group_id', 'document_id'],
         'access_token_required': True,
         'method': 'delete',
+        'expected_status':204,
         },
     # Group Folders methods #
     'group_folders': {
@@ -258,6 +263,7 @@ methods = {
         'required': ['group_id', 'id'],
         'access_token_required': True,
         'method': 'delete',
+        'expected_status':204,
         },
     'add_document_to_group_folder': {
         'url': '/oapi/library/groups/%(group_id)s/folders/%(folder_id)s/%(document_id)s/',
@@ -270,6 +276,7 @@ methods = {
         'required': ['group_id', 'folder_id', 'document_id'],
         'access_token_required': True,
         'method': 'delete',
+        'expected_status':204,
         },
     'profile_info': {
         'url': '/oapi/profiles/info/%(id)s/',
