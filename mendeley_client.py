@@ -31,6 +31,32 @@ import urllib
 
 import apidefinitions
 
+
+def resolve_http_redirect(url):
+    # this function is needed to make sure oauth headers are not sent
+    # when following redirections. requests only removes the cookies
+    # as of 4889adce4e7ea6b9e89fd6059cda2dc7cdf53be8
+
+    # see https://github.com/kennethreitz/requests/blob/develop/requests/models.py#L228
+    # for a smarter implementation
+    
+    # same as chrome and firefox
+    max_redirects = 20
+
+    redirections = 0
+    while True:
+        redirections += 1
+        if redirections > max_redirects:
+            raise Exception("Too many redirects (%d)"%redirections)
+
+        response = requests.head(url)
+        if "location" in response.headers:
+            new_url = response.headers["location"]
+            if new_url != url:
+                continue
+        break
+    return url
+
 class OAuthClient(object):
     """General purpose OAuth client"""
     def __init__(self, consumer_key, consumer_secret, options=None):
@@ -112,18 +138,23 @@ class OAuthClient(object):
         final_headers = request.to_header()
         if extra_headers:
             final_headers.update(extra_headers)
+        
+        # common arguments for the requests call
+        # disables automatic redirections following as requests
+        # to use resolve_http_redirect(..) above
+        requests_args = {"allow_redirects":False}
 
         if request.method == 'GET':
-            return requests.get(request.url, headers=final_headers)
+            return requests.get(request.url, headers=final_headers, **requests_args)
         
         if request.method == 'POST':
-            return requests.post(request.url, data=request.to_postdata(), headers={"Content-type": "application/x-www-form-urlencoded"} )
+            return requests.post(request.url, data=request.to_postdata(), headers={"Content-type": "application/x-www-form-urlencoded"},**requests_args )
 
         elif request.method == 'DELETE':
-            return requests.delete(request.url, headers=final_headers)
+            return requests.delete(request.url, headers=final_headers, **requests_args)
             
         elif request.method == 'PUT':
-            return requests.put(request.url, data=body, headers=final_headers) 
+            return requests.put(request.url, data=body, headers=final_headers, **requests_args) 
 
         assert False
 
@@ -159,6 +190,11 @@ class MendeleyRemoteMethod(object):
 
         # Do the callback - will return a HTTPResponse object
         response = self.callback(url, self.details.get('access_token_required', False), self.details.get('method', 'get'), optional_args)
+        
+        # basic redirection following
+        if response.status_code in [301, 302, 303]:
+            url = resolve_http_redirect(response.headers["location"])
+            response = requests.get(url)
 
         # if we expect something else than 200 with no content, just check
         # that the status code is as expected
@@ -187,7 +223,7 @@ class MendeleyRemoteMethod(object):
         if mime == 'application/json':
             return json.loads(response.text)
         elif attached == 'attachment':
-            return {'filename': filename, 'data': response.text}
+            return {'filename': filename, 'data': response.raw}
         else:
             return response
 

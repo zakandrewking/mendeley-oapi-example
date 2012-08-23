@@ -9,6 +9,8 @@ from mendeley_client import *
 
 class TestMendeleyClient(unittest.TestCase):
 
+    client = create_client("../config.json")
+
     def clear_groups(self):
         for group in self.client.groups():
             self.client.delete_group(group["id"])
@@ -187,7 +189,6 @@ class TestMendeleyClient(unittest.TestCase):
 
         hasher = hashlib.sha1()
         hasher.update(open(file_to_upload, "rb").read())
-
         expected_file_hash = hasher.hexdigest()
         expected_file_size = str(os.path.getsize(file_to_upload))
 
@@ -210,7 +211,39 @@ class TestMendeleyClient(unittest.TestCase):
         # delete the document
         self.assertTrue(self.client.delete_library_document(document_id))
 
-    
+    def test_download_pdf(self):
+        file_to_upload = "../example.pdf"
+
+        hasher = hashlib.sha1(open(file_to_upload, "rb").read())
+        expected_file_hash = hasher.hexdigest()
+        expected_file_size = os.path.getsize(file_to_upload)
+
+        response = self.client.create_document(document={"type":"Book", "title":"Ninja gonna be flyin"})
+        self.assertTrue("error" not in response)
+        document_id = response["document_id"]
+
+        # upload the pdf
+        upload_result = self.client.upload_pdf(document_id, file_to_upload)
+        
+        def download_and_check(with_redirect):
+            # download the file back
+            response = self.client.download_file(document_id, expected_file_hash, with_redirect=with_redirect)
+            if isinstance(response, requests.models.Response):
+                print response.text
+                print response.status_code
+
+            self.assertTrue("data" in response and "filename" in response)
+
+            # check that the downloaded file is the same as the uploaded one
+            data = response["data"].read()
+            actual_file_hash = hashlib.sha1(data).hexdigest()
+            size = len(data)
+            self.assertEquals(size, expected_file_size)
+            self.assertEquals(actual_file_hash, expected_file_hash)
+
+        download_and_check(with_redirect="true")
+        download_and_check(with_redirect="false")
+
 
 if __name__ == "__main__":
     unittest.main()

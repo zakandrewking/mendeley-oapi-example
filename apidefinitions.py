@@ -103,12 +103,14 @@ methods = {
     'download_file': {
         'url': '/oapi/library/documents/%(id)s/file/%(hash)s/',
         'required': ['id', 'hash'],
+        'optional' : ['with_redirect'],
         'access_token_required': True,
         'method': 'get'
         },
     'download_file_group': {
         'url': '/oapi/library/documents/%(id)s/file/%(hash)s/%(group)s/',
         'required': ['id', 'hash', 'group'],
+        'optional' : ['with_redirect'],
         'access_token_required': True,
         'method': 'get'
         },
