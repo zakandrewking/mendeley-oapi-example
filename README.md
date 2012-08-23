@@ -5,4 +5,11 @@ For more details on the Mendeley Open API see http://www.mendeley.com/oapi/
 
 For more details on how to use the client see the usage example in the code
 
-Requires the oauth2 package: http://github.com/simplegeo/python-oauth2
+Requirements
+------------
+
+oauth2   http://github.com/simplegeo/python-oauth2
+requests https://github.com/kennethreitz/requests
+can be installed with pip
+
+pip install requests oauth2

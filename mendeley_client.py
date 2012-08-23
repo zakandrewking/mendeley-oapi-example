@@ -17,45 +17,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 For details of the Mendeley Open API see http://dev.mendeley.com/
 
-Example usage:
+See test.py and the tests in unit-tests/
 
->>> from pprint import pprint
->>> from mendeley_client import MendeleyClient
->>> mendeley = MendeleyClient('<consumer_key>', '<secret_key>')
->>> try:
->>> 	mendeley.load_keys()
->>> except IOError:
->>> 	mendeley.get_required_keys()
->>> 	mendeley.save_keys()
->>> results = mendeley.search('science')
->>> pprint(results['documents'][0])
-{u'authors': None,
- u'doi': None,
- u'id': u'8c18bd50-6f07-11df-b8f0-001e688e2dcb',
- u'mendeley_url': u'http://localhost/research//',
- u'publication_outlet': None,
- u'title': None,
- u'year': None}
->>> documents = mendeley.library()
->>> pprint(documents)
-{u'current_page': 0,
- u'document_ids': [u'86175', u'86176', u'86174', u'86177'],
- u'items_per_page': 20,
- u'total_pages': 1,
- u'total_results': 4}
->>> details = mendeley.document_details(documents['document_ids'][0])
->>> pprint(details)
-{u'authors': [u'Ben Dowling'],
- u'discipline': {u'discipline': u'Computer and Information Science',
-                 u'subdiscipline': None},
- u'tags': ['nosql'],
- u'title': u'NoSQL(EU) Write Up',
- u'year': 2010}
 """
-import oauth2 as oauth
-import pickle
-import httplib
+
+import hashlib
 import json
+import oauth2 as oauth
+import os
+import pickle
+import requests
 import urllib
 
 import apidefinitions
@@ -121,7 +92,7 @@ class OAuthClient(object):
         return self._send_request(request, token, body, headers)
 
     def request_token(self):
-        response = self.get(self.request_token_url).read()
+        response = self.get(self.request_token_url).text
         token = oauth.Token.from_string(response)
         return token 
     
@@ -131,28 +102,30 @@ class OAuthClient(object):
         return request.to_url()
 
     def access_token(self, request_token):
-        response = self.get(self.access_token_url, request_token).read()
+        response = self.get(self.access_token_url, request_token).text
         return oauth.Token.from_string(response)
 
     def _send_request(self, request, token=None, body=None, extra_headers=None):
         request.sign_request(oauth.SignatureMethod_HMAC_SHA1(), self.consumer, token)
-        conn = self._get_conn()
+
+        # generate the final headers
+        final_headers = request.to_header()
+        if extra_headers:
+            final_headers.update(extra_headers)
+
+        if request.method == 'GET':
+            return requests.get(request.url, headers=final_headers)
         
         if request.method == 'POST':
-            conn.request('POST', request.url, body=request.to_postdata(), headers={"Content-type": "application/x-www-form-urlencoded"})
-        elif request.method == 'PUT':
-            final_headers = request.to_header()
-            if extra_headers is not None:
-                final_headers.update(extra_headers)
-            conn.request('PUT', request.url, body, headers=final_headers)                 
-        elif request.method == 'DELETE':
-            conn.request('DELETE', request.url, headers=request.to_header())
-        else:
-            conn.request('GET', request.url, headers=request.to_header())
-        return conn.getresponse()
+            return requests.post(request.url, data=request.to_postdata(), headers={"Content-type": "application/x-www-form-urlencoded"} )
 
-    def _get_conn(self):
-        return httplib.HTTPConnection("%s:%d" % (self.host, self.port))
+        elif request.method == 'DELETE':
+            return requests.delete(request.url, headers=final_headers)
+            
+        elif request.method == 'PUT':
+            return requests.put(request.url, data=body, headers=final_headers) 
+
+        assert False
 
 class MendeleyRemoteMethod(object):
     """Call a Mendeley OpenAPI method and parse and handle the response"""
@@ -186,14 +159,20 @@ class MendeleyRemoteMethod(object):
 
         # Do the callback - will return a HTTPResponse object
         response = self.callback(url, self.details.get('access_token_required', False), self.details.get('method', 'get'), optional_args)
-        status = response.status
-        body = response.read()
-        content_type = response.getheader("Content-Type")
+
+        # if we expect something else than 200 with no content, just check
+        # that the status code is as expected
+        status = response.status_code
+        expected_status = self.details.get("expected_status",200)
+        if expected_status != 200:
+            return status == expected_status
+
+        content_type = response.headers["Content-Type"]
         ct = content_type.split("; ")
         mime = ct[0]
         attached = None
         try:
-            content_disposition = response.getheader("Content-Disposition")
+            content_disposition = response.headers["Content-Disposition"]
             cd = content_disposition.split("; ")
             attached = cd[0]
             filename = cd[1].split("=")
@@ -201,15 +180,14 @@ class MendeleyRemoteMethod(object):
         except:
             pass
 
+        # if the request failed, return all the request instead of just the body
+        if status in [400, 401, 403, 404, 405]:
+            return response
+
         if mime == 'application/json':
-	    # HTTP Status 204 means 'No Content' which json.loads cannot deal with
-            if status == 204:
-                data = ''
-            else:
-                data = json.loads(body)
-            return data
+            return json.loads(response.text)
         elif attached == 'attachment':
-            return {'filename': filename, 'data': body}
+            return {'filename': filename, 'data': response.text}
         else:
             return response
 
@@ -289,6 +267,22 @@ class MendeleyClient(object):
         for method, details in apidefinitions.methods.items():
             setattr(self, method, MendeleyRemoteMethod(details, self._api_request))
 
+    # replace the upload_pdf with a more user friendly method
+    def upload_pdf(self,document_id, filename):
+
+        fp = open(filename, 'rb')
+        data = fp.read()
+
+        hasher = hashlib.sha1()
+        hasher.update(data)
+        sha1_hash = hasher.hexdigest()
+
+        return self._upload_pdf(document_id, 
+                            file_name=os.path.basename(filename),
+                            sha1_hash=sha1_hash,
+                            oauth_body_hash=sha1_hash,
+                            data=data)
+
     def _api_request(self, url, access_token_required = False, method='get', params=None):
         if params == None: 
             params = {}
@@ -305,7 +299,8 @@ class MendeleyClient(object):
             response = self.oauth_client.delete(url, access_token)
         elif method == 'put':
             headers = {'Content-disposition': 'attachment; filename="%s"' % params.get('file_name')}
-            response = self.oauth_client.put(url, access_token, params.get('data'), params.get('oauth_body_hash'), headers)
+            response = self.oauth_client.put(url, access_token, params.get('data'), 
+                                             params.get('oauth_body_hash'), headers)
         elif method == 'post':
             response = self.oauth_client.post(url, params, access_token)
         else:

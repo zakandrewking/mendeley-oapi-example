@@ -29,23 +29,7 @@ class TestMendeleyClient(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        # Load the configuration file
-        config = MendeleyClientConfig("../config.json")
-        if not config.is_valid():
-            print "Please edit config.json before running this script"
-            sys.exit(1)
-        # create a client and load tokens from the pkl file
-        self.client = MendeleyClient(config.api_key, config.api_secret)
-        tokens_store = MendeleyTokensStore()
-
-        # configure the client to use a specific token
-        # if no tokens are available, prompt the user to authenticate
-        access_token = tokens_store.get_access_token("test_account")
-        if not access_token:
-            self.client.interactive_auth()
-            tokens_store.add_account("test_account",self.client.get_access_token())
-        else:
-            self.client.set_access_token(access_token)
+        self.client = create_client("../config.json")
 
     def tearDown(self):
         self.clear_folders()
@@ -70,7 +54,7 @@ class TestMendeleyClient(unittest.TestCase):
 
             for group_type2 in types:
                 response = self.client.create_group(group={"name":"test", "type":group_type2})
-                self.assertTrue("error" in response and "group" in response["error"])
+                self.assertEquals(response.status_code, 403)
             self.client.delete_group(first_group["group_id"])
    
     def test_create_group(self):
@@ -113,7 +97,7 @@ class TestMendeleyClient(unittest.TestCase):
         # check that the user can't delete a folder owned by an other user (or non-existent)
         invalid_ids = ["1234567890123", "-1234567890123", "-1", "","some string"]
         for invalid_id in invalid_ids:
-            self.assertTrue("error" in self.client.delete_folder(invalid_id))
+            self.assertFalse(self.client.delete_folder(invalid_id))
 
     def test_parent_folder(self):
         parent_id = None
@@ -137,7 +121,7 @@ class TestMendeleyClient(unittest.TestCase):
         response = self.client.delete_folder(folder_ids[-1]) 
         self.is_folder(folder_ids[-1])
         del folder_ids[-1]
-        self.assertTrue("error" not in response)
+        self.assertTrue(response)
 
         # add another folder on the bottom and delete its parent
         # check both are deleted and grandparent still ok
@@ -152,7 +136,7 @@ class TestMendeleyClient(unittest.TestCase):
         
         #  Delete the parent and check the parent and new folder are deleted
         deleted = self.client.delete_folder(parent_id)
-        self.assertTrue("error" not in deleted)
+        self.assertTrue(deleted)
         self.assertFalse(self.is_folder(new_folder_id))
         del folder_ids[-1] # new_folder_id
         self.assertFalse(self.is_folder(parent_id))
@@ -181,7 +165,8 @@ class TestMendeleyClient(unittest.TestCase):
         document_id = document["document_id"]
         invalid_folder_ids = ["some string", "-1", "156484", "", "-2165465465"]
         for invalid_folder_id in invalid_folder_ids:
-            self.assertTrue("error" in self.client.add_document_to_folder(invalid_folder_id, document_id))
+            response = self.client.add_document_to_folder(invalid_folder_id, document_id)
+            self.assertTrue(response.status_code == 404 or response.status_code == 400)
         
         folder = self.client.create_folder(folder={"name": "Test"})
         self.assertTrue("error" not in folder)
@@ -191,10 +176,39 @@ class TestMendeleyClient(unittest.TestCase):
         folder_id = folder["folder_id"]
         
         for invalid_document_id in invalid_document_ids:
-            self.assertTrue("error" in self.client.add_document_to_folder(folder_id, invalid_document_id))
+            response = self.client.add_document_to_folder(folder_id, invalid_document_id)
+            self.assertTrue(response.status_code == 404 or response.status_code == 400)
         
     def test_download_invalid(self):
-        self.assertTrue("error" in self.client.download_file("invalid", "invalid"))
+        self.assertEquals(self.client.download_file("invalid", "invalid").status_code, 400)
+
+    def test_upload_pdf(self):
+        file_to_upload = "../example.pdf"
+
+        hasher = hashlib.sha1()
+        hasher.update(open(file_to_upload, "rb").read())
+
+        expected_file_hash = hasher.hexdigest()
+        expected_file_size = str(os.path.getsize(file_to_upload))
+
+        response = self.client.create_document(document={"type":"Book", "title":"Ninja gonna be flyin"})
+        self.assertTrue("error" not in response)
+        document_id = response["document_id"]
+
+        # upload the pdf
+        upload_result = self.client.upload_pdf(document_id, file_to_upload)
+
+        # get the details and check the document now has files
+        details = self.client.document_details(document_id)
+        self.assertEquals(len(details["files"]), 1)
+
+        document_file = details["files"][0]
+        self.assertEquals(document_file["file_extension"], "pdf")
+        self.assertEquals(document_file["file_hash"], expected_file_hash)
+        self.assertEquals(document_file["file_size"], expected_file_size)
+
+        # delete the document
+        self.assertTrue(self.client.delete_library_document(document_id))
 
     
 
