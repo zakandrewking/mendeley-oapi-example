@@ -1,4 +1,5 @@
 import calendar
+import os
 import sys
 import time
 
@@ -23,9 +24,11 @@ def timestamp():
 
 def get_config_file():
     config_file = "../config.json"
-    if len(sys.argv) > 1 and sys.argv[1].endswith("json"):
-        config_file = sys.argv[1]
-        del sys.argv[1]    
+    if len(sys.argv) > 1:
+        _, file_ext = os.path.splitext(sys.argv[1])
+        if file_ext == ".json":
+            config_file = sys.argv[1]
+            del sys.argv[1]    
     return config_file
 
 class TemporaryDocument:
@@ -40,6 +43,5 @@ class TemporaryDocument:
         return self.__document
 
     def __del__(self):
-        response = self.__client.delete_library_document(self.__document["document_id"])
-        assert "error" not in response
+        assert self.__client.delete_library_document(self.__document["document_id"])
         

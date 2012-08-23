@@ -11,6 +11,8 @@ from synced_client import *
 class TestEnv:
     sclient = None
     debug = True 
+    # introduce a 1sec sleep when updating a document just after it has been created to
+    # avoid version conflicts due to timestamp precision while WWW-8681 is fixed
     sleep_time = 1
     log_file = open("test-sync.log","w")
 
@@ -31,7 +33,7 @@ def create_test_doc(index):
     return response["document_id"]
 
 def remove_document(document_id):
-    assert ("error" not in TestEnv.sclient.client.delete_library_document(document_id))
+    assert TestEnv.sclient.client.delete_library_document(document_id)
 
 class TestDocumentsSyncing(unittest.TestCase):
 
@@ -47,7 +49,8 @@ class TestDocumentsSyncing(unittest.TestCase):
         self.log_status("After sync")        
 
     def document_exists(self, document_id):
-        return "error" not in TestEnv.sclient.client.document_details(document_id)
+        details = TestEnv.sclient.client.document_details(document_id)
+        return isinstance(details, dict) and "error" not in details 
       
     def setUp(self):
         TestEnv.clear_library()
@@ -180,7 +183,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         original_version = local_document.version()
 
         # do a remote update
-        time.sleep(TestEnv.sleep_time)
+        time.sleep(TestEnv.sleep_time)  # see comment in TestEnv
         response = TestEnv.sclient.client.update_document(ids[0], document={"title":new_remote_title})
         remote_version = response["version"]
         self.assertTrue("error" not in response)
@@ -213,7 +216,7 @@ class TestDocumentsSyncing(unittest.TestCase):
         original_version = local_document.version()
         
         # do a remote update
-        time.sleep(TestEnv.sleep_time)
+        time.sleep(TestEnv.sleep_time) # see comment in TestEnv
         response = TestEnv.sclient.client.update_document(ids[0], document={"title":new_remote_title})
         self.assertTrue("error" not in response)
         self.assertTrue(response["version"] > original_version)

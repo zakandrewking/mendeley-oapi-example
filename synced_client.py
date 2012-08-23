@@ -125,7 +125,7 @@ class ConflictResolver:
         raise Exception("Reimplement me")
 
     def resolve_local_update_remote_delete(self, local_document):
-        """Return a boolean to decide if the local version should be kept"""
+        """Return a boolean to decide if the local version should be recreated"""
         raise Exception("Reimplement me")
 
 class SimpleConflictResolver(ConflictResolver):
@@ -138,8 +138,8 @@ class SimpleConflictResolver(ConflictResolver):
         return keep_remote_document
 
     def resolve_local_update_remote_delete(self, local_document):
-        keep_local_document = True
-        return keep_local_document
+        recreate_local_document = True
+        return recreate_local_document
 
     def resolve_both_updated(self, local_document, remote_document):
         assert isinstance(remote_document, SyncedDocument)
@@ -243,112 +243,121 @@ class DummySyncedClient:
         remote_documents = self.client.library()
         assert "error" not in remote_documents
         remote_ids = []
-        for remote_document_dict in remote_documents["documents"]:
-            remote_id = remote_document_dict["id"]
-            remote_document = SyncedDocument(remote_document_dict, SyncStatus.Synced)
-            remote_ids.append(remote_id)
-            if remote_id not in self.documents:
-                # new document
-                self.documents[remote_id] = self.fetch_document(remote_id)
-                assert self.documents[remote_id].object.id == remote_id
-                continue
-            
-            local_document = self.documents[remote_id]
 
-            # server can't know about new documents
-            assert not local_document.is_new()
+        def sync_remote_changes():
 
-            # if remote version is more recent
-            if local_document.version() != remote_document.version():
-                remote_document = self.fetch_document(remote_id)
-                if local_document.is_deleted():
-                    keep_remote = self.conflict_resolver.resolve_local_delete_remote_update(local_document, remote_document)
-                    if keep_remote:
-                        self.documents[remote_id].reset(remote_document, SyncStatus.Synced)
-                    else:
-                        # will be deleted later
-                        pass
+            for remote_document_dict in remote_documents["documents"]:
+                remote_id = remote_document_dict["id"]
+                remote_document = SyncedDocument(remote_document_dict, SyncStatus.Synced)
+                remote_ids.append(remote_id)
+                if remote_id not in self.documents:
+                    # new document
+                    self.documents[remote_id] = self.fetch_document(remote_id)
+                    assert self.documents[remote_id].object.id == remote_id
                     continue
 
-                if local_document.is_synced():
-                    # update from remote
-                    local_document.reset(remote_document, SyncStatus.Synced)
-                    continue
+                local_document = self.documents[remote_id]
 
-                if local_document.is_modified():
-                    # both documents are modified, resolve the conflict
-                    # by handling the remote changes required and leave the local 
-                    # changes to be synced later
-                    self.conflict_resolver.resolve_both_updated(local_document, remote_document)
-                    assert isinstance(local_document, SyncedDocument)
-                    assert isinstance(remote_document, SyncedDocument)
-                    assert local_document.version() == remote_document.version()
-                    continue
+                # server can't know about new documents
+                assert not local_document.is_new()
 
-                # all cases should have been handled
-                assert False
-
-            # both have the same version, so only local changes possible
-            else:
-                if local_document.is_synced():
-                    # nothing to do
-                    # assert remote_document == local_document
-                    continue
-
-                if local_document.is_deleted():
-                    # nothing to do, will be deleted
-                    continue
-
-                if local_document.is_modified():
-                    # nothing to do, changes will be sent in the update loop
-                    continue
-                
-                # all cases should have been handled
-                assert False
-
-        # deal with local changes or remote deletion
-        for doc_id in self.documents.keys():
-            local_document = self.documents[doc_id]
-            assert local_document.id() == doc_id
-
-            # new documents are handled later
-            assert not local_document.is_new()
-
-            if doc_id not in remote_ids:
-                # was deleted on the server         
-                if local_document.is_modified():
-                    keep_local = self.conflict_resolver.resolve_local_update_remote_delete(local_document)
-                    if keep_local:
-                        remote_ids.append(self.push_new_local_document(local_document))
+                # if remote version is more recent
+                if local_document.version() != remote_document.version():
+                    remote_document = self.fetch_document(remote_id)
+                    if local_document.is_deleted():
+                        keep_remote = self.conflict_resolver.resolve_local_delete_remote_update(local_document, remote_document)
+                        if keep_remote:
+                            self.documents[remote_id].reset(remote_document, SyncStatus.Synced)
+                        else:
+                            # will be deleted later
+                            pass
                         continue
-                del self.documents[doc_id]
-                continue   
 
-            if local_document.is_synced():
-                continue                 
+                    if local_document.is_synced():
+                        # update from remote
+                        local_document.reset(remote_document, SyncStatus.Synced)
+                        continue
 
-            if local_document.is_deleted():
-                response = self.client.delete_library_document(doc_id)
-                assert "error" not in response
-                del self.documents[doc_id]
-                continue
+                    if local_document.is_modified():
+                        # both documents are modified, resolve the conflict
+                        # by handling the remote changes required and leave the local 
+                        # changes to be synced later
+                        self.conflict_resolver.resolve_both_updated(local_document, remote_document)
+                        assert isinstance(local_document, SyncedDocument)
+                        assert isinstance(remote_document, SyncedDocument)
+                        assert local_document.version() == remote_document.version()
+                        continue
 
-            if local_document.is_modified():
-                response = self.client.update_document(doc_id, document=local_document.changes)
-                assert "error" not in response
-                local_document.status = SyncStatus.Synced
-                local_document.object.version = response["version"]
-                local_document.apply_changes()
-                continue
+                    # all cases should have been handled
+                    assert False
 
-            assert False
+                # both have the same version, so only local changes possible
+                else:
+                    if local_document.is_synced():
+                        # nothing to do
+                        # assert remote_document == local_document
+                        continue
 
-        # create new local documents on the server
-        for new_document in self.new_documents:
-            assert new_document.is_new()
-            doc_id = self.push_new_local_document(new_document)
-            assert doc_id > 0
-        self.new_documents = []
+                    if local_document.is_deleted():
+                        # nothing to do, will be deleted
+                        continue
+
+                    if local_document.is_modified():
+                        # nothing to do, changes will be sent in the update loop
+                        continue
+
+                    # all cases should have been handled
+                    assert False
+    
+        def sync_local_changes():
+            # deal with local changes or remote deletion
+            for doc_id in self.documents.keys():
+                local_document = self.documents[doc_id]
+                assert local_document.id() == doc_id
+
+                # new documents are handled later
+                assert not local_document.is_new()
+
+                if doc_id not in remote_ids:
+                    # was deleted on the server         
+                    if local_document.is_modified():
+                        recreate_local = self.conflict_resolver.resolve_local_update_remote_delete(local_document)
+                        if recreate_local:
+                            remote_ids.append(self.push_new_local_document(local_document))
+                            continue
+                    del self.documents[doc_id]
+                    continue   
+
+                if local_document.is_synced():
+                    continue                 
+
+                if local_document.is_deleted():
+                    assert self.client.delete_library_document(doc_id)
+                    del self.documents[doc_id]
+                    continue
+
+                if local_document.is_modified():
+                    response = self.client.update_document(doc_id, document=local_document.changes)
+                    assert "error" not in response
+                    local_document.status = SyncStatus.Synced
+                    local_document.object.version = response["version"]
+                    local_document.apply_changes()
+                    continue
+
+                assert False
+
+        def send_new_documents():
+            # create new local documents on the server
+            for new_document in self.new_documents:
+                assert new_document.is_new()
+                doc_id = self.push_new_local_document(new_document)
+                assert doc_id > 0
+            self.new_documents = []
+
+            
+        sync_remote_changes()
+        sync_local_changes()
+        send_new_documents()
 
         return True
 

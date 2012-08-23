@@ -86,7 +86,6 @@ class TestDocumentVersion(unittest.TestCase):
     def verify_version(self, obj, expected):
         delta = abs(obj["version"]-expected)
         self.assertTrue(delta < 300)        
-
     
     # Tests
     def setUp(self):
