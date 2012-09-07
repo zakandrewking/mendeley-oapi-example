@@ -25,6 +25,7 @@ import hashlib
 import json
 import oauth2 as oauth
 import os
+import sys
 import pickle
 import requests
 import urllib
@@ -39,7 +40,7 @@ def resolve_http_redirect(url):
 
     # see https://github.com/kennethreitz/requests/blob/develop/requests/models.py#L228
     # for a smarter implementation
-    
+
     # same as chrome and firefox
     max_redirects = 20
 
@@ -68,9 +69,9 @@ class OAuthClient(object):
         self.request_token_url = options.get('access_token_url', '/oauth/request_token/')
         self.authorize_url = options.get('access_token_url', '/oauth/authorize/')
 
-        if self.port == 80: 
+        if self.port == 80:
             self.authority = self.host
-        else: 
+        else:
             self.authority = "%s:%d" % (self.host, self.port)
 
         self.consumer = oauth.Consumer(consumer_key, consumer_secret)
@@ -95,14 +96,14 @@ class OAuthClient(object):
             parameters=post_params
         )
         return self._send_request(request, token)
-    
+
     def delete(self, path, token=None):
         url = "http://%s%s" % (self.host, path)
         request = oauth.Request.from_consumer_and_token(
-            self.consumer, 
-            token, 
-            http_method='DELETE', 
-            http_url=url, 
+            self.consumer,
+            token,
+            http_method='DELETE',
+            http_url=url,
         )
         return self._send_request(request, token)
 
@@ -120,8 +121,8 @@ class OAuthClient(object):
     def request_token(self):
         response = self.get(self.request_token_url).text
         token = oauth.Token.from_string(response)
-        return token 
-    
+        return token
+
     def authorize(self, token, callback_url = "oob"):
         url = 'http://%s%s' % (self.authority, self.authorize_url)
         request = oauth.Request.from_token_and_callback(token=token, callback=callback_url, http_url=url)
@@ -138,7 +139,7 @@ class OAuthClient(object):
         final_headers = request.to_header()
         if extra_headers:
             final_headers.update(extra_headers)
-        
+
         # common arguments for the requests call
         # disables automatic redirections following as requests
         # to use resolve_http_redirect(..) above
@@ -146,15 +147,15 @@ class OAuthClient(object):
 
         if request.method == 'GET':
             return requests.get(request.url, headers=final_headers, **requests_args)
-        
+
         if request.method == 'POST':
             return requests.post(request.url, data=request.to_postdata(), headers={"Content-type": "application/x-www-form-urlencoded"},**requests_args )
 
         elif request.method == 'DELETE':
             return requests.delete(request.url, headers=final_headers, **requests_args)
-            
+
         elif request.method == 'PUT':
-            return requests.put(request.url, data=body, headers=final_headers, **requests_args) 
+            return requests.put(request.url, data=body, headers=final_headers, **requests_args)
 
         assert False
 
@@ -168,10 +169,10 @@ class MendeleyRemoteMethod(object):
         if isinstance(obj,dict):
             return json.dumps(obj)
         return obj
-    
+
     def __call__(self, *args, **kwargs):
         url = self.details['url']
-        # Get the required arguments 
+        # Get the required arguments
         if self.details.get('required'):
             required_args = dict(zip(self.details.get('required'), args))
             if len(required_args) < len(self.details.get('required')):
@@ -190,7 +191,7 @@ class MendeleyRemoteMethod(object):
 
         # Do the callback - will return a HTTPResponse object
         response = self.callback(url, self.details.get('access_token_required', False), self.details.get('method', 'get'), optional_args)
-        
+
         # basic redirection following
         if response.status_code in [301, 302, 303]:
             url = resolve_http_redirect(response.headers["location"])
@@ -228,7 +229,7 @@ class MendeleyRemoteMethod(object):
             return response
 
 class MendeleyAccount:
-    
+
     def __init__(self, access_token):
         self.access_token = access_token
 
@@ -240,7 +241,7 @@ class MendeleyTokensStore:
 
         if self.filename:
             self.load()
-            
+
     def __del__(self):
         if self.filename:
             self.save()
@@ -255,7 +256,7 @@ class MendeleyTokensStore:
         if not key in self.accounts:
             return None
         return self.accounts[key].access_token
-    
+
     def remove_account(self, key):
         if not key in self.accounts:
             return
@@ -268,7 +269,7 @@ class MendeleyTokensStore:
 
     def load(self):
         if not self.filename:
-            raise Exception("Need to specify a filename for this store")      
+            raise Exception("Need to specify a filename for this store")
         try:
             self.accounts = pickle.load(open(self.filename, 'r'))
         except IOError:
@@ -299,7 +300,7 @@ class MendeleyClient(object):
     def __init__(self, consumer_key, consumer_secret, options=None):
         self.oauth_client = OAuthClient(consumer_key, consumer_secret, options)
 
-        # Create methods for all of the API calls    
+        # Create methods for all of the API calls
         for method, details in apidefinitions.methods.items():
             setattr(self, method, MendeleyRemoteMethod(details, self._api_request))
 
@@ -313,20 +314,20 @@ class MendeleyClient(object):
         hasher.update(data)
         sha1_hash = hasher.hexdigest()
 
-        return self._upload_pdf(document_id, 
+        return self._upload_pdf(document_id,
                             file_name=os.path.basename(filename),
                             sha1_hash=sha1_hash,
                             oauth_body_hash=sha1_hash,
                             data=data)
 
     def _api_request(self, url, access_token_required = False, method='get', params=None):
-        if params == None: 
+        if params == None:
             params = {}
 
         access_token = None
         if access_token_required:
             access_token = self.get_access_token()
-            
+
         if method == 'get':
             if len(params) > 0:
                 url += "?%s" % urllib.urlencode(params)
@@ -335,7 +336,7 @@ class MendeleyClient(object):
             response = self.oauth_client.delete(url, access_token)
         elif method == 'put':
             headers = {'Content-disposition': 'attachment; filename="%s"' % params.get('file_name')}
-            response = self.oauth_client.put(url, access_token, params.get('data'), 
+            response = self.oauth_client.put(url, access_token, params.get('data'),
                                              params.get('oauth_body_hash'), headers)
         elif method == 'post':
             response = self.oauth_client.post(url, params, access_token)
@@ -360,7 +361,7 @@ class MendeleyClient(object):
            get_auth_url and the verifier received from the server"""
         request_token.set_verifier(verifier)
         access_token = self.oauth_client.access_token(request_token)
-        return access_token    
+        return access_token
 
     def interactive_auth(self):
         request_token, auth_url = self.get_auth_url()
@@ -373,7 +374,7 @@ def create_client(config_file="config.json", keys_file=None, account_name="test_
     config = MendeleyClientConfig(config_file)
     if not config.is_valid():
         print "Please edit config.json before running this script"
-        sys.exit(1)    
+        sys.exit(1)
 
     # create a client and load tokens from the pkl file
     host = "api.mendeley.com"
@@ -384,8 +385,8 @@ def create_client(config_file="config.json", keys_file=None, account_name="test_
         keys_file = "keys_%s.pkl"%host
 
     client = MendeleyClient(config.api_key, config.api_secret, {"host":host})
-    tokens_store = MendeleyTokensStore(keys_file)    
- 
+    tokens_store = MendeleyTokensStore(keys_file)
+
     # configure the client to use a specific token
     # if no tokens are available, prompt the user to authenticate
     access_token = tokens_store.get_access_token(account_name)
@@ -393,5 +394,5 @@ def create_client(config_file="config.json", keys_file=None, account_name="test_
         client.interactive_auth()
         tokens_store.add_account(account_name,client.get_access_token())
     else:
-        client.set_access_token(access_token)    
+        client.set_access_token(access_token)
     return client
