@@ -43,3 +43,9 @@ class TemporaryDocument:
         response = self.__client.delete_library_document(self.__document["document_id"])
         assert "error" not in response
         
+def test_prompt():
+    print "\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    print "!! This test will reset the library of the account used for testing !!"
+    print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+    inp = raw_input("If you are okay with this, please type 'yes' to continue: ")
+    return inp == "yes"

@@ -6,6 +6,7 @@ parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),"..")
 os.sys.path.insert(0, parent_dir) 
 
 from mendeley_client import *
+from utils import test_prompt
 
 class TestMendeleyClient(unittest.TestCase):
 
@@ -246,4 +247,8 @@ class TestMendeleyClient(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    if not test_prompt():
+        print "Aborting"
+        sys.exit(1)
+    print ""
     unittest.main()
