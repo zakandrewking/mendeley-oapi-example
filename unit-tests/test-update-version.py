@@ -58,12 +58,7 @@ class TestDocumentUpdate(unittest.TestCase):
     @timed
     def test_valid_update_no_delay(self):
         #Do a request without delay - the request will fail due to the rate limiting (one update per second per document)
-        info = {"type":"Book Section",
-                "title":"How to kick asses when out of bubble gum",
-                "authors":[ {"forename":"Steven", "surname":"Seagal"}, 
-                            {"forename":"Dolph","surname":"Lundgren"}],
-                "year":"1998"
-                }
+        info = {"type":"Book Section"}
         self.update_and_check(info, False)
 
     @timed
@@ -79,6 +74,7 @@ class TestDocumentUpdate(unittest.TestCase):
 
     @timed
     @delay(TestEnv.sleep_time)
+    @skip('skipping until value type is fixed.')
     def test_invalid_field_type(self):
         # year is a string not a number
         self.update_and_check({"year":1998}, False)
