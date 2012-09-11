@@ -12,15 +12,28 @@ def timed(fn):
         return res
     return wrapped
 
-def skip(fn):
-    def wrapped(*args, **kwargs):
-        print "Skipping %s"%fn.__name__
-        return
-    return wrapped
+def skip(reason):
+    def wrappedskip(fn):
+        def wrapped(*args, **kwargs):
+            print "Skipping %(function)s:  %(reason)s" % {"function" : fn.__name__, "reason": reason}
+            return
+        wrapped.__name__=fn.__name__
+        return wrapped
+    return wrappedskip
 
 def timestamp():
     n = time.gmtime()
     return calendar.timegm(n)
+
+def delay(period):
+    def wrappedperiod(fn):
+        def wrapped(*args, **kwargs):
+            time.sleep(period)
+            res = fn(*args, **kwargs)
+            return res
+        wrapped.__name__=fn.__name__
+        return wrapped
+    return wrappedperiod
 
 def get_config_file():
     config_file = "../config.json"

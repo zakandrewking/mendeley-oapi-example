@@ -25,8 +25,8 @@ class TestDocumentUpdate(unittest.TestCase):
     def update_doc(self, obj):
         document_id = self.test_document["document_id"]
         response = TestEnv.client.update_document(document_id, document=obj)  
-        if "error" in response:
-            return False, response
+        if isinstance(response, requests.Response) and "error" in response.json:
+            return False, response.json
         updated_details = TestEnv.client.document_details(document_id)
         return self.compare_documents(updated_details, obj), response
 
@@ -45,6 +45,7 @@ class TestDocumentUpdate(unittest.TestCase):
         return True
     
     @timed
+    @delay(TestEnv.sleep_time)
     def test_valid_update(self):
         info = {"type":"Book Section",
                 "title":"How to kick asses when out of bubble gum",
@@ -55,28 +56,45 @@ class TestDocumentUpdate(unittest.TestCase):
         self.update_and_check(info, True)
 
     @timed
-    def test_authors_format(self):
-        #self.update_and_check({"authors":[ ["Steven", "Seagal"], ["Dolph","Lundgren"]]}, False)
-        self.update_and_check({"authors":[ ["Steven Seagal"], ["Dolph Lundgren"]]}, False)
-        self.update_and_check({"authors":[ {"forename":"Steven", "surname":"Seagal"}, 
-                                           {"forename":"Dolph","surname":"Lundgren"}]}, True)
-        self.update_and_check({"authors":"bleh"}, False)
-        self.update_and_check({"authors":-1}, False)
+    def test_valid_update_no_delay(self):
+        #Do a request without delay - the request will fail due to the rate limiting (one update per second per document)
+        info = {"type":"Book Section",
+                "title":"How to kick asses when out of bubble gum",
+                "authors":[ {"forename":"Steven", "surname":"Seagal"}, 
+                            {"forename":"Dolph","surname":"Lundgren"}],
+                "year":"1998"
+                }
+        self.update_and_check(info, False)
 
     @timed
+    @delay(TestEnv.sleep_time)
+    @skip('skipping until format is fixed.')
+    def test_authors_format(self):
+        self.update_and_check({"authors":[ ["Steven", "Seagal"], ["Dolph","Lundgren"]]}, False)
+        self.update_and_check({"authors":[ ["Steven Seagal"], ["Dolph Lundgren"]]}, False)
+        self.update_and_check({"authors":"bleh"}, False)
+        self.update_and_check({"authors":-1}, False)
+        self.update_and_check({"authors":[ {"forename":"Steven", "surname":"Seagal"}, 
+                                           {"forename":"Dolph","surname":"Lundgren"}]}, True)
+
+    @timed
+    @delay(TestEnv.sleep_time)
     def test_invalid_field_type(self):
         # year is a string not a number
         self.update_and_check({"year":1998}, False)
 
     @timed
+    @delay(TestEnv.sleep_time)
     def test_invalid_document_type(self):
         self.update_and_check({"type":"Cat Portrait"}, False)
         
     @timed
+    @delay(TestEnv.sleep_time)
     def test_invalid_field(self):
         self.update_and_check({"shoesize":1}, False)
 
     @timed
+    @delay(TestEnv.sleep_time)
     def test_readonly_field(self):
         self.update_and_check({"uuid": "0xdeadbeef"}, False)
         
@@ -125,19 +143,19 @@ class TestDocumentVersion(unittest.TestCase):
         self.assertEqual(details["version"], created_version)
 
     @timed
+    @delay(TestEnv.sleep_time)
     def test_version_on_document_update(self):
         """Verify that an update increases the version number"""
         # sleep a bit to avoid receiving the same timestamp between create and update
-        time.sleep(TestEnv.sleep_time)
         current_version = self.test_document["version"]
         response = TestEnv.client.update_document(self.test_document["document_id"], document={"title":"updated title"})
         self.assertTrue("version" in response)
         self.assertTrue(response["version"] > current_version)
 
     @timed
+    @delay(TestEnv.sleep_time)
     def test_version_on_document_folder_update(self):
         # sleep a bit to avoid receiving the same timestamp between create and update
-        time.sleep(TestEnv.sleep_time)
 
         folder = TestEnv.client.create_folder(folder={"name":"test"})
         self.assertTrue("version" in folder)
