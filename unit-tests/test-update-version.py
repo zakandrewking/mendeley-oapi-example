@@ -10,7 +10,7 @@ from mendeley_client import *
 
 class TestEnv:
     client = None
-    sleep_time = 1
+    sleep_time = 1 
 
 class TestDocumentUpdate(unittest.TestCase):
 
@@ -56,10 +56,14 @@ class TestDocumentUpdate(unittest.TestCase):
         self.update_and_check(info, True)
 
     @timed
+    @delay(TestEnv.sleep_time)
     def test_valid_update_no_delay(self):
-        #Do a request without delay - the request will fail due to the rate limiting (one update per second per document)
         info = {"type":"Book Section"}
+        self.update_and_check(info, True)
+        #Do a request without delay - the request will fail due to the rate limiting (one update per second per document)
+        info = {"year":"1998"}
         self.update_and_check(info, False)
+
 
     @timed
     @delay(TestEnv.sleep_time)
