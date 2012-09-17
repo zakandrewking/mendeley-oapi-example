@@ -60,9 +60,13 @@ class TestDocumentUpdate(unittest.TestCase):
     def test_valid_update_no_delay(self):
         info = {"type":"Book Section"}
         self.update_and_check(info, True)
-        #Do a request without delay - the request will fail due to the rate limiting (one update per second per document)
+        #Do a request without delay - the request should fail if done in less than a second from the previous create/update due to the rate limiting (one update per second per document)
+        #Please note this test might fail if the previous update_and_check takes longer than a second to run.
         info = {"year":"1998"}
         self.update_and_check(info, False)
+        #Sleeping again and doing the update should work then
+        time.sleep(1)
+        self.update_and_check(info, True)
 
 
     @timed
