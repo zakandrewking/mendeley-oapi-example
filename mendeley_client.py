@@ -224,7 +224,7 @@ class MendeleyRemoteMethod(object):
         if mime == 'application/json':
             return json.loads(response.text)
         elif attached == 'attachment':
-            return {'filename': filename, 'data': response.raw}
+            return {'filename': filename, 'data': response.content}
         else:
             return response
 

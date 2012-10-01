@@ -236,9 +236,9 @@ class TestMendeleyClient(unittest.TestCase):
             self.assertTrue("data" in response and "filename" in response)
 
             # check that the downloaded file is the same as the uploaded one
-            data = response["data"].read()
-            actual_file_hash = hashlib.sha1(data).hexdigest()
+            data = response['data']
             size = len(data)
+            actual_file_hash = hashlib.sha1(data).hexdigest()
             self.assertEquals(size, expected_file_size)
             self.assertEquals(actual_file_hash, expected_file_hash)
 
