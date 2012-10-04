@@ -229,9 +229,6 @@ class TestMendeleyClient(unittest.TestCase):
         def download_and_check(with_redirect):
             # download the file back
             response = self.client.download_file(document_id, expected_file_hash, with_redirect=with_redirect)
-            if isinstance(response, requests.models.Response):
-                print response.text
-                print response.status_code
 
             self.assertTrue("data" in response and "filename" in response)
 
