@@ -320,6 +320,16 @@ class MendeleyClient(object):
                             oauth_body_hash=sha1_hash,
                             data=data)
 
+    def update_style(self, csl_data, profile_id, name):
+
+        hasher = hashlib.sha1()
+        hasher.update(csl_data)
+        sha1_hash = hasher.hexdigest()
+
+        return self._update_style(profile_id, name,
+                                  oauth_body_hash=sha1_hash,
+                                  data=csl_data)
+ 
     def _api_request(self, url, access_token_required = False, method='get', params=None):
         if params == None:
             params = {}
@@ -335,7 +345,9 @@ class MendeleyClient(object):
         elif method == 'delete':
             response = self.oauth_client.delete(url, access_token)
         elif method == 'put':
-            headers = {'Content-disposition': 'attachment; filename="%s"' % params.get('file_name')}
+            headers = {}
+            if params.get('file_name'):
+                headers = {'Content-disposition': 'attachment; filename="%s"' % params.get('file_name')}
             response = self.oauth_client.put(url, access_token, params.get('data'),
                                              params.get('oauth_body_hash'), headers)
         elif method == 'post':

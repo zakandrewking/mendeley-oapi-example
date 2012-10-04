@@ -292,4 +292,23 @@ methods = {
         'access_token_required': True,
         'method': 'get'
         },
+    # Citation Styles methods #
+    '_update_style': {
+        'url': '/oapi/styles/%(id)s/%(name)s/',
+        'required': ['id', 'name'],
+        'optional': ['data', 'oauth_body_hash'],
+        'access_token_required': True,
+        'method': 'put'
+	},
+    'get_citation_style': {
+        'url': '/oapi/styles/%(id)s/%(name)s/',
+        'required': ['id', 'name'],
+        'method': 'get'
+        },
+    'fetch_citation_style': {
+        'url': '/oapi/styles/fetch/',
+        'optional': ['style_url'],
+        'access_token_required': True,
+        'method': 'get'
+        },
     }
