@@ -93,6 +93,12 @@ methods = {
         'access_token_required': True,
         'method': 'post',
         },
+    'create_document_from_canonical': {
+        'url': '/oapi/library/documents/',
+        'optional': ['document'],
+        'access_token_required': True,
+        'method': 'post',
+        },
     'update_document': {
         'url': '/oapi/library/documents/%(id)s',
         'required': ['id'],

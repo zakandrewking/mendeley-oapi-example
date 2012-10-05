@@ -155,6 +155,17 @@ class TestMendeleyClient(unittest.TestCase):
 
     ## Test Other ##
 
+    def test_create_doc_from_canonical(self):
+        canonical_id = "26a21bf0-6d00-11df-a2b2-0026b95e3eb7"
+        document = self.client.create_document_from_canonical(document={"canonical_id": canonical_id})
+        self.assertTrue("document_id" in document)
+        self.assertTrue("version" in document)
+
+        canonical_metadata = self.client.details(canonical_id)
+        library_metadata = self.client.document_details(document["document_id"])
+        
+        self.assertEquals(canonical_metadata["title"], library_metadata["title"])
+
     def test_add_doc_to_folder_valid(self):
         document = self.client.create_document(document={"type" : "Book","title": "doc_test", "year": 2025})
         doc_id = document["document_id"]
