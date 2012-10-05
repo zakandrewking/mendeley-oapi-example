@@ -138,6 +138,10 @@ methods = {
         'url': '/oapi/library/documents/authored/',
         'access_token_required': True,
         },
+    'documents_starred': {
+        'url': '/oapi/library/documents/starred/',
+        'access_token_required': True,
+    },
     'delete_library_document': {
         'url': '/oapi/library/documents/%(id)s/',
         'required': ['id'],
