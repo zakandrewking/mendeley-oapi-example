@@ -251,13 +251,11 @@ class TestMendeleyClient(unittest.TestCase):
 
         profile_info = self.client.my_profile_info()
         profile_id = profile_info['main']['profile_id']
-        name = 'python-test-csl-example-this-doesnt-exist-for-sure-cause-its-retarded'
+        name = 'python-test-csl-example'
 
         response = self.client.update_style(data_from_file, profile_id, name)
         
-        self.assertEquals(response.status_code, 200)
-        # Check the returned data is the same as the put one
-        self.assertEquals(response.content, data_from_file)
+        self.assertTrue(response.status_code == 201 or response.status_code == 200)
         
         #Check a get returns the expected data that we just put there
         response = self.client.get_citation_style(profile_id, name)
@@ -270,7 +268,6 @@ class TestMendeleyClient(unittest.TestCase):
         response = self.client.update_style(data_from_file, profile_id, name)
         
         self.assertEquals(response.status_code, 200)
-        self.assertEquals(response.content, data_from_file)
 
         #And check another GET gives us the updated style
         response = self.client.get_citation_style(profile_id, name)
