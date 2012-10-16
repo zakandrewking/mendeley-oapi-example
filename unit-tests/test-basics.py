@@ -166,7 +166,7 @@ class TestMendeleyClient(unittest.TestCase):
 
     def test_create_doc_from_canonical(self):
         canonical_id = "26a21bf0-6d00-11df-a2b2-0026b95e3eb7"
-        document = self.client.create_document_from_canonical(document={"canonical_id": canonical_id})
+        document = self.client.create_document_from_canonical(canonical_id=canonical_id)
         self.assertTrue("document_id" in document)
         self.assertTrue("version" in document)
 

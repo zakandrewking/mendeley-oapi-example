@@ -95,7 +95,7 @@ methods = {
         },
     'create_document_from_canonical': {
         'url': '/oapi/library/documents/',
-        'optional': ['document'],
+        'optional': ['canonical_id'],
         'access_token_required': True,
         'method': 'post',
         },
