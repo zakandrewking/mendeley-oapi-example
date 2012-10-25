@@ -70,6 +70,15 @@ class TestMendeleyClient(unittest.TestCase):
             self.assertTrue("error" not in response)
             self.client.delete_group(response["group_id"])
 
+    def test_create_group_document(self):
+        # First create a public group
+        group = self.client.create_group(group={"name":"public_group_with_docs", "type":"open"})
+        group_id = group['group_id']
+        # Then create a new document in the group
+        response = self.client.create_document(document={"type" : "Book","title": "group_doc_test", "year": 2025, "group_id": group_id})
+        self.assertTrue("error" not in response)
+        self.assertTrue("document_id" in response)
+        self.assertTrue("version" in response)
 
     ## Test Folder ##
 
@@ -161,8 +170,10 @@ class TestMendeleyClient(unittest.TestCase):
         self.assertTrue("version" in document)
 
         response = self.client.documents_starred()
-        self.assertEquals(response["documents"][0]["id"], document["document_id"])
-        self.assertEquals(response["documents"][0]["version"], document["version"])
+        i = len(response["documents"])-1
+        if i >= 0:
+           self.assertEquals(response["documents"][i]["id"], document["document_id"])
+           self.assertEquals(response["documents"][i]["version"], document["version"])
 
     def test_create_doc_from_canonical(self):
         canonical_id = "26a21bf0-6d00-11df-a2b2-0026b95e3eb7"
