@@ -30,6 +30,7 @@ from mendeley_client import *
 import os
 import sys
 
+# edit config.json first
 mendeley = create_client()
 
 ########################################

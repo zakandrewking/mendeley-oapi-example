@@ -93,6 +93,15 @@ methods = {
         'access_token_required': True,
         'method': 'post',
         },
+    'update_document': {
+        'url': '/oapi/library/documents/%(id)s',
+        'required': ['id'],
+        # HACK: 'document' is required, but by making it optional here it'll get POSTed
+        # Unfortunately that means it needs to be a named param when calling this method
+        'optional': ['document'],
+        'access_token_required': True,
+        'method': 'post',
+        },
     '_upload_pdf': {
         'url': '/oapi/library/documents/%(id)s/',
         'required': ['id'],
