@@ -93,6 +93,12 @@ methods = {
         'access_token_required': True,
         'method': 'post',
         },
+    'create_document_from_canonical': {
+        'url': '/oapi/library/documents/',
+        'optional': ['canonical_id'],
+        'access_token_required': True,
+        'method': 'post',
+        },
     'update_document': {
         'url': '/oapi/library/documents/%(id)s',
         'required': ['id'],
@@ -132,6 +138,10 @@ methods = {
         'url': '/oapi/library/documents/authored/',
         'access_token_required': True,
         },
+    'documents_starred': {
+        'url': '/oapi/library/documents/starred/',
+        'access_token_required': True,
+    },
     'delete_library_document': {
         'url': '/oapi/library/documents/%(id)s/',
         'required': ['id'],

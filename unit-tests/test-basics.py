@@ -154,6 +154,26 @@ class TestMendeleyClient(unittest.TestCase):
         self.assertEqual(len(self.client.folders()), 0)
 
     ## Test Other ##
+    
+    def test_get_starred_documents(self):
+        document = self.client.create_document(document={"type" : "Book","title": "starred_doc_test", "year": 2025, "isStarred": 1})
+        self.assertTrue("document_id" in document)
+        self.assertTrue("version" in document)
+
+        response = self.client.documents_starred()
+        self.assertEquals(response["documents"][0]["id"], document["document_id"])
+        self.assertEquals(response["documents"][0]["version"], document["version"])
+
+    def test_create_doc_from_canonical(self):
+        canonical_id = "26a21bf0-6d00-11df-a2b2-0026b95e3eb7"
+        document = self.client.create_document_from_canonical(canonical_id=canonical_id)
+        self.assertTrue("document_id" in document)
+        self.assertTrue("version" in document)
+
+        canonical_metadata = self.client.details(canonical_id)
+        library_metadata = self.client.document_details(document["document_id"])
+        
+        self.assertEquals(canonical_metadata["title"], library_metadata["title"])
 
     def test_add_doc_to_folder_valid(self):
         document = self.client.create_document(document={"type" : "Book","title": "doc_test", "year": 2025})
