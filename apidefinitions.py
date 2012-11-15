@@ -109,8 +109,15 @@ methods = {
         'method': 'post',
         },
     '_upload_pdf': {
-        'url': '/oapi/library/documents/%(id)s/',
+        'url': '/oapi/documents/user/%(id)s/',
         'required': ['id'],
+        'optional': ['data', 'file_name', 'oauth_body_hash', 'sha1_hash'],
+        'access_token_required': True,
+        'method': 'put'
+	},
+    '_upload_group_pdf': {
+        'url': '/oapi/documents/group/%(group)s/%(id)s/',
+        'required': ['group', 'id'],
         'optional': ['data', 'file_name', 'oauth_body_hash', 'sha1_hash'],
         'access_token_required': True,
         'method': 'put'

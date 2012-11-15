@@ -321,6 +321,21 @@ class MendeleyClient(object):
                             oauth_body_hash=sha1_hash,
                             data=data)
 
+    def upload_group_pdf(self, group_id, document_id, filename):
+
+        fp = open(filename, 'rb')
+        data = fp.read()
+
+        hasher = hashlib.sha1()
+        hasher.update(data)
+        sha1_hash = hasher.hexdigest()
+
+        return self._upload_group_pdf(group_id, document_id,
+                            file_name=os.path.basename(filename),
+                            sha1_hash=sha1_hash,
+                            oauth_body_hash=sha1_hash,
+                            data=data)
+
     def _api_request(self, url, access_token_required = False, method='get', params=None):
         if params == None:
             params = {}

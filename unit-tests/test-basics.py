@@ -262,6 +262,37 @@ class TestMendeleyClient(unittest.TestCase):
         download_and_check(with_redirect="true")
         download_and_check(with_redirect="false")
 
+    def test_upload_pdf_group(self):
+        file_to_upload = "../example.pdf"
+
+        hasher = hashlib.sha1(open(file_to_upload, "rb").read())
+        expected_file_hash = hasher.hexdigest()
+        expected_file_size = str(os.path.getsize(file_to_upload))
+
+        response = self.client.create_group(group={"name":"test", "type":'open'})
+        self.assertTrue("error" not in response)
+        group_id = response["group_id"]
+        
+        response = self.client.create_document(document={"type":"Book", "title":"Ninja gonna be flyin", "group_id": group_id})
+        self.assertTrue("error" not in response)
+        document_id = response["document_id"]
+
+        # upload the pdf
+        upload_result = self.client.upload_group_pdf(group_id, document_id, file_to_upload)
+
+        # get the details and check the document now has files
+        details = self.client.group_doc_details(group_id, document_id)
+        self.assertEquals(len(details["files"]), 1)
+
+        document_file = details["files"][0]
+        self.assertEquals(document_file["file_extension"], "pdf")
+        self.assertEquals(document_file["file_hash"], expected_file_hash)
+        self.assertEquals(document_file["file_size"], expected_file_size)
+
+        # delete the document
+        self.assertTrue(self.client.delete_group_document(group_id, document_id))
+
+
 
 if __name__ == "__main__":
     if not test_prompt():
