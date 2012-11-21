@@ -120,8 +120,13 @@ class OAuthClient(object):
         return self._send_request(request, token, body, headers)
 
     def request_token(self):
-        response = self.get(self.request_token_url).text
-        token = oauth.Token.from_string(response)
+        response = self.get(self.request_token_url)
+
+        if response.status_code == 503:
+            raise Exception('Service unavailable')
+        
+        responseToken = response.text
+        token = oauth.Token.from_string(responseToken)
         return token
 
     def authorize(self, token, callback_url = "oob"):
@@ -392,8 +397,12 @@ def create_client(config_file="config.json", keys_file=None, account_name="test_
     # if no tokens are available, prompt the user to authenticate
     access_token = tokens_store.get_access_token(account_name)
     if not access_token:
-        client.interactive_auth()
-        tokens_store.add_account(account_name,client.get_access_token())
+        try:
+            client.interactive_auth()
+            tokens_store.add_account(account_name,client.get_access_token())
+        except Exception as e:
+            print e
+            sys.exit(1)
     else:
         client.set_access_token(access_token)
     return client
