@@ -18,7 +18,7 @@ class TestDocumentUpdate(unittest.TestCase):
     def setUp(self):
         self.test_document = TestEnv.client.create_document(document={'type' : 'Book',
                                                                       'title': 'Document creation test', 
-                                                                      'year': 2008})
+                                                                      'year': 2008, 'authors': [{'forename' : 'Nina', 'surname': 'Simone'}]})
     def tearDown(self):
         TestEnv.client.delete_library_document(self.test_document["document_id"])  
 
