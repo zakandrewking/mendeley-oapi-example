@@ -249,7 +249,7 @@ class TestMendeleyClient(unittest.TestCase):
         def download_and_check(with_redirect):
             # download the file back
             response = self.client.download_file(document_id, expected_file_hash, with_redirect=with_redirect)
-
+            self.assertEqual(response.status_code, 200)
             self.assertTrue("data" in response and "filename" in response)
 
             # check that the downloaded file is the same as the uploaded one
