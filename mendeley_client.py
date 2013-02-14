@@ -30,6 +30,7 @@ import pickle
 import requests
 import sys
 import urllib
+import mimetypes
 
 import apidefinitions
 
@@ -341,7 +342,8 @@ class MendeleyClient(object):
         elif method == 'delete':
             response = self.oauth_client.delete(url, access_token)
         elif method == 'put':
-            headers = {'Content-disposition': 'attachment; filename="%s"' % params.get('file_name')}
+            [content_type, encoding] = mimetypes.guess_type(params.get('file_name'))
+            headers = {'Content-disposition': 'attachment; filename="%s"' % params.get('file_name'), 'Content-Type': content_type}
             response = self.oauth_client.put(url, access_token, params.get('data'),
                                              params.get('oauth_body_hash'), headers)
         elif method == 'post':
