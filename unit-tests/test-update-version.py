@@ -24,9 +24,9 @@ class TestDocumentUpdate(unittest.TestCase):
 
     def update_doc(self, obj):
         document_id = self.test_document["document_id"]
-        response = TestEnv.client.update_document(document_id, document=obj)  
-        if isinstance(response, requests.Response) and "error" in response.json:
-            return False, response.json
+        response = TestEnv.client.update_document(document_id, document=obj)
+        if isinstance(response, requests.Response) and "error" in response.content:
+            return False, response.content
         updated_details = TestEnv.client.document_details(document_id)
         return self.compare_documents(updated_details, obj), response
 
@@ -49,7 +49,7 @@ class TestDocumentUpdate(unittest.TestCase):
     def test_valid_update(self):
         info = {"type":"Book Section",
                 "title":"How to kick asses when out of bubble gum",
-                "authors":[ {"forename":"Steven", "surname":"Seagal"}, 
+                "authors":[ {"forename":"Steven", "surname":"Seagal"},
                             {"forename":"Dolph","surname":"Lundgren"}],
                 "year":"1998"
                 }
@@ -77,7 +77,7 @@ class TestDocumentUpdate(unittest.TestCase):
         self.update_and_check({"authors":[ ["Steven Seagal"], ["Dolph Lundgren"]]}, False)
         self.update_and_check({"authors":"bleh"}, False)
         self.update_and_check({"authors":-1}, False)
-        self.update_and_check({"authors":[ {"forename":"Steven", "surname":"Seagal"}, 
+        self.update_and_check({"authors":[ {"forename":"Steven", "surname":"Seagal"},
                                            {"forename":"Dolph","surname":"Lundgren"}]}, True)
 
     @timed
@@ -91,7 +91,7 @@ class TestDocumentUpdate(unittest.TestCase):
     @delay(TestEnv.sleep_time)
     def test_invalid_document_type(self):
         self.update_and_check({"type":"Cat Portrait"}, False)
-        
+
     @timed
     @delay(TestEnv.sleep_time)
     def test_invalid_field(self):
@@ -101,18 +101,18 @@ class TestDocumentUpdate(unittest.TestCase):
     @delay(TestEnv.sleep_time)
     def test_readonly_field(self):
         self.update_and_check({"uuid": "0xdeadbeef"}, False)
-        
+
 class TestDocumentVersion(unittest.TestCase):
 
     # Utils
     def verify_version(self, obj, expected):
         delta = abs(obj["version"]-expected)
-        self.assertTrue(delta < 300)        
-    
+        self.assertTrue(delta < 300)
+
     # Tests
     def setUp(self):
         self.test_document = TestEnv.client.create_document(document={'type' : 'Book',
-                                                                        'title': 'Document creation test', 
+                                                                        'title': 'Document creation test',
                                                                         'year': 2008})
     def tearDown(self):
         TestEnv.client.delete_library_document(self.test_document["document_id"])
@@ -169,7 +169,7 @@ class TestDocumentVersion(unittest.TestCase):
         # verify that the document version changed
         created_version = self.test_document["version"]
         details = TestEnv.client.document_details(self.test_document["document_id"])
-        self.assertTrue(details["version"] > created_version)        
+        self.assertTrue(details["version"] > created_version)
 
         TestEnv.client.delete_folder(folder["folder_id"])
 

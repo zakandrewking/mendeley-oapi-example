@@ -50,7 +50,7 @@ class TestMendeleyClient(unittest.TestCase):
 
         # check that the user can't create more than 2 restricted groups
         types = ["private", "invite"]
-        
+
         for group_type1 in types:
             first_group = self.client.create_group(group={"name":"test", "type":group_type1})
             self.assertTrue("group_id" in first_group)
@@ -59,7 +59,7 @@ class TestMendeleyClient(unittest.TestCase):
                 response = self.client.create_group(group={"name":"test", "type":group_type2})
                 self.assertEquals(response.status_code, 403)
             self.client.delete_group(first_group["group_id"])
-   
+
     def test_create_group(self):
         # check that the user can create several open groups and one restricted group
         types = ["private", "invite"]
@@ -81,13 +81,13 @@ class TestMendeleyClient(unittest.TestCase):
         self.assertFalse("error" in rep)
 
     def test_create_folder_valid(self):
-        # check that the user can create folder 
+        # check that the user can create folder
         folder_name = "test"
         rep = self.client.create_folder(folder={"name": folder_name})
         folder_id = rep["folder_id"]
         folder_ = [folder for folder in self.client.folders() if folder["id"] == folder_id]
         self.assertEquals(folder_name, folder_[0]["name"])
-        
+
     def test_delete_folder_valid(self):
         # check that the user can delete folder
         folder_name = "test"
@@ -105,8 +105,8 @@ class TestMendeleyClient(unittest.TestCase):
     def test_parent_folder(self):
         parent_id = None
         folder_ids = []
-        
-        # create top level folder and 3 children 
+
+        # create top level folder and 3 children
         for i in range(4):
             data={"name": "folder_%d"%i}
             if parent_id:
@@ -119,9 +119,9 @@ class TestMendeleyClient(unittest.TestCase):
             # update the list of folder_ids
             folder_ids.append(folder["folder_id"])
             parent_id = folder_ids[-1]
-        
+
         # delete last folder and check it"s gone and that its parent still exists
-        response = self.client.delete_folder(folder_ids[-1]) 
+        response = self.client.delete_folder(folder_ids[-1])
         self.is_folder(folder_ids[-1])
         del folder_ids[-1]
         self.assertTrue(response)
@@ -136,7 +136,7 @@ class TestMendeleyClient(unittest.TestCase):
         new_folder_id = folder["folder_id"]
         folder_ids.append(new_folder_id)
         self.assertTrue("parent" in folder and str(folder["parent"]) == parent_id)
-        
+
         #  Delete the parent and check the parent and new folder are deleted
         deleted = self.client.delete_folder(parent_id)
         self.assertTrue(deleted)
@@ -145,16 +145,16 @@ class TestMendeleyClient(unittest.TestCase):
         self.assertFalse(self.is_folder(parent_id))
         del folder_ids[-1] # parent_id
         self.assertTrue(self.is_folder(grandparent_id))
-        
+
         # delete top level folder and check all children are deleted
         top_folder = self.client.delete_folder(folder_ids[0])
         for folder_id in folder_ids:
             self.assertFalse(self.is_folder(folder_id))
-        
+
         self.assertEqual(len(self.client.folders()), 0)
 
     ## Test Other ##
-    
+
     def test_get_starred_documents(self):
         document = self.client.create_document(document={"type" : "Book","title": "starred_doc_test", "year": 2025, "isStarred": 1})
         self.assertTrue("document_id" in document)
@@ -165,14 +165,14 @@ class TestMendeleyClient(unittest.TestCase):
         self.assertEquals(response["documents"][0]["version"], document["version"])
 
     def test_create_doc_from_canonical(self):
-        canonical_id = "26a21bf0-6d00-11df-a2b2-0026b95e3eb7"
+        canonical_id = "eaede082-7d8b-3f0c-be3a-fb7be685fbe6"
         document = self.client.create_document_from_canonical(canonical_id=canonical_id)
         self.assertTrue("document_id" in document)
         self.assertTrue("version" in document)
 
         canonical_metadata = self.client.details(canonical_id)
         library_metadata = self.client.document_details(document["document_id"])
-        
+
         self.assertEquals(canonical_metadata["title"], library_metadata["title"])
 
     def test_add_doc_to_folder_valid(self):
@@ -190,18 +190,18 @@ class TestMendeleyClient(unittest.TestCase):
         for invalid_folder_id in invalid_folder_ids:
             response = self.client.add_document_to_folder(invalid_folder_id, document_id)
             self.assertTrue(response.status_code == 404 or response.status_code == 400)
-        
+
         folder = self.client.create_folder(folder={"name": "Test"})
         self.assertTrue("error" not in folder)
 
         invalid_document_ids = ["some string", "-1", "156484", "", "-2165465465"]
 
         folder_id = folder["folder_id"]
-        
+
         for invalid_document_id in invalid_document_ids:
             response = self.client.add_document_to_folder(folder_id, invalid_document_id)
             self.assertTrue(response.status_code == 404 or response.status_code == 400)
-        
+
     def test_download_invalid(self):
         self.assertEquals(self.client.download_file("invalid", "invalid").status_code, 400)
 
@@ -249,7 +249,6 @@ class TestMendeleyClient(unittest.TestCase):
         def download_and_check(with_redirect):
             # download the file back
             response = self.client.download_file(document_id, expected_file_hash, with_redirect=with_redirect)
-            self.assertEqual(response.status_code, 200)
             self.assertTrue("data" in response and "filename" in response)
 
             # check that the downloaded file is the same as the uploaded one
