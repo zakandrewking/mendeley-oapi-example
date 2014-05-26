@@ -23,9 +23,8 @@ See test.py and the tests in unit-tests/
 
 import hashlib
 import json
-import oauth2 as oauth
+from rauth import OAuth2Service
 import os
-import sys
 import pickle
 import requests
 import sys
@@ -62,107 +61,74 @@ def resolve_http_redirect(url):
 
 class OAuthClient(object):
     """General purpose OAuth client"""
-    def __init__(self, consumer_key, consumer_secret, options=None):
+    def __init__(self, client_id, client_secret, options=None):
         if options == None: options = {}
         # Set values based on provided options, or revert to defaults
-        self.host = options.get('host', 'api.mendeley.com')
-        self.port = options.get('port', 80)
-        self.access_token_url = options.get('access_token_url', '/oauth/access_token/')
-        self.request_token_url = options.get('access_token_url', '/oauth/request_token/')
-        self.authorize_url = options.get('access_token_url', '/oauth/authorize/')
+        self.access_token_url = options.get('access_token_url', 'https://api-oauth2.mendeley.com/oauth/token')
+        self.authorize_url = options.get('access_token_url', 'https://api-oauth2.mendeley.com/oauth/authorize')
+        self.name = options.get('name', 'Example app')
+        self.base_url = options.get('base_url', 'https://api-oauth2.mendeley.com')
 
-        if self.port == 80:
-            self.authority = self.host
-        else:
-            self.authority = "%s:%d" % (self.host, self.port)
+        self.consumer = OAuth2Service(client_id=client_id,
+                client_secret=client_secret,
+                name=self.name,
+                authorize_url=self.authorize_url,
+                access_token_url=self.access_token_url,
+                base_url=self.base_url)
 
-        self.consumer = oauth.Consumer(consumer_key, consumer_secret)
+    def get_authorize_url(self, redirect_uri="http://localhost"):
+        params = {'redirect_uri': redirect_uri,
+                'response_type': 'code',
+                'scope':'all'}
+        return self.consumer.get_authorize_url(**params)
+
+    def get_access_token(self, code, redirect_uri):
+        data = {'code': code,
+                'grant_type': 'authorization_code',
+                'redirect_uri': redirect_uri}
+
+        return self.consumer.get_access_token(data=data, decoder=json.loads)
+
+    def get_session(self, access_token):
+        return self.consumer.get_session(token=access_token)
 
     def get(self, path, token=None):
-        url = "http://%s%s" % (self.host, path)
-        request = oauth.Request.from_consumer_and_token(
-            self.consumer,
-            token,
-            http_method='GET',
-            http_url=url,
-        )
+        request = { "method": "GET", "url": path}
         return self._send_request(request, token)
 
     def post(self, path, post_params, token=None):
-        url = "http://%s%s" % (self.host, path)
-        request = oauth.Request.from_consumer_and_token(
-            self.consumer,
-            token,
-            http_method='POST',
-            http_url=url,
-            parameters=post_params
-        )
-        return self._send_request(request, token)
+        request = { "method": "POST", "url": path}
+        return self._send_request(request, token, post_params)
 
     def delete(self, path, token=None):
-        url = "http://%s%s" % (self.host, path)
-        request = oauth.Request.from_consumer_and_token(
-            self.consumer,
-            token,
-            http_method='DELETE',
-            http_url=url,
-        )
+        request = { "method": "DELETE", "url": path}
         return self._send_request(request, token)
 
-    def put(self, path, token=None, body=None, body_hash=None, headers=None):
-        url = "http://%s%s" % (self.host, path)
-        request = oauth.Request.from_consumer_and_token(
-            self.consumer,
-            token,
-            http_method='PUT',
-            http_url=url,
-            parameters={'oauth_body_hash': body_hash}
-        )
+    def put(self, path, token=None, body=None, headers=None):
+        request = { "method": "PUT", "url": path}
         return self._send_request(request, token, body, headers)
 
-    def request_token(self):
-        response = self.get(self.request_token_url)
-
-        if response.status_code == 503:
-            raise Exception('Service unavailable')
-        
-        responseToken = response.text
-        token = oauth.Token.from_string(responseToken)
-        return token
-
-    def authorize(self, token, callback_url = "oob"):
-        url = 'http://%s%s' % (self.authority, self.authorize_url)
-        request = oauth.Request.from_token_and_callback(token=token, callback=callback_url, http_url=url)
-        return request.to_url()
-
-    def access_token(self, request_token):
-        response = self.get(self.access_token_url, request_token).text
-        return oauth.Token.from_string(response)
-
     def _send_request(self, request, token=None, body=None, extra_headers=None):
-        request.sign_request(oauth.SignatureMethod_HMAC_SHA1(), self.consumer, token)
-
-        # generate the final headers
-        final_headers = request.to_header()
-        if extra_headers:
-            final_headers.update(extra_headers)
+        session = self.get_session(token)
 
         # common arguments for the requests call
         # disables automatic redirections following as requests
         # to use resolve_http_redirect(..) above
         requests_args = {"allow_redirects":False}
+        method = request.get("method")
+        url = request.get("url")
 
-        if request.method == 'GET':
-            return requests.get(request.url, headers=final_headers, **requests_args)
+        if method == 'GET':
+            return session.get(url, **requests_args)
 
-        if request.method == 'POST':
-            return requests.post(request.url, data=request.to_postdata(), headers={"Content-type": "application/x-www-form-urlencoded"},**requests_args )
+        if method == 'POST':
+            return session.post(url, data=body, headers={"Content-type": "application/x-www-form-urlencoded"},**requests_args )
 
-        elif request.method == 'DELETE':
-            return requests.delete(request.url, headers=final_headers, **requests_args)
+        elif method == 'DELETE':
+            return session.delete(url, **requests_args)
 
-        elif request.method == 'PUT':
-            return requests.put(request.url, data=body, headers=final_headers, **requests_args)
+        elif method == 'PUT':
+            return session.put(url, data=body, headers=extra_headers, **requests_args)
 
         assert False
 
@@ -197,7 +163,7 @@ class MendeleyRemoteMethod(object):
                 optional_args[optional] = self.serialize(kwargs[optional])
 
         # Do the callback - will return a HTTPResponse object
-        response = self.callback(url, self.details.get('access_token_required', False), self.details.get('method', 'get'), optional_args)
+        response = self.callback(url, self.details.get('access_token_required', True), self.details.get('method', 'get'), optional_args)
 
         # basic redirection following
         if response.status_code in [301, 302, 303]:
@@ -211,6 +177,15 @@ class MendeleyRemoteMethod(object):
         if expected_status != 200:
             return status == expected_status
 
+        # if the request failed, return all the request instead of just the body
+        if status == 401:
+            print 'Access token expired, please remove the .pkl file and try again.'
+            print response.content
+            return response
+
+        if status in [400, 403, 404, 405]:
+            return response
+
         content_type = response.headers["Content-Type"]
         ct = content_type.split("; ")
         mime = ct[0]
@@ -223,10 +198,6 @@ class MendeleyRemoteMethod(object):
             filename = filename[1].strip('"')
         except:
             pass
-
-        # if the request failed, return all the request instead of just the body
-        if status in [400, 401, 403, 404, 405]:
-            return response
 
         if mime == 'application/json':
             return json.loads(response.text)
@@ -289,10 +260,10 @@ class MendeleyClientConfig:
         self.load()
 
     def is_valid(self):
-        if not hasattr(self,"api_key") or not hasattr(self, "api_secret"):
+        if not hasattr(self,"client_id") or not hasattr(self, "client_secret"):
             return False
 
-        if self.api_key == "<change me>" or self.api_secret == "<change me>":
+        if self.client_id == "<change me>" or self.client_secret == "<change me>":
             return False
 
         return True
@@ -304,8 +275,8 @@ class MendeleyClientConfig:
 
 class MendeleyClient(object):
 
-    def __init__(self, consumer_key, consumer_secret, options=None):
-        self.oauth_client = OAuthClient(consumer_key, consumer_secret, options)
+    def __init__(self, client_id, client_secret, options=None):
+        self.oauth_client = OAuthClient(client_id, client_secret, options)
 
         # Create methods for all of the API calls
         for method, details in apidefinitions.methods.items():
@@ -324,7 +295,6 @@ class MendeleyClient(object):
         return self._upload_pdf(document_id,
                             file_name=os.path.basename(filename),
                             sha1_hash=sha1_hash,
-                            oauth_body_hash=sha1_hash,
                             data=data)
 
     def _api_request(self, url, access_token_required = False, method='get', params=None):
@@ -344,8 +314,7 @@ class MendeleyClient(object):
         elif method == 'put':
             [content_type, encoding] = mimetypes.guess_type(params.get('file_name'))
             headers = {'Content-disposition': 'attachment; filename="%s"' % params.get('file_name'), 'Content-Type': content_type}
-            response = self.oauth_client.put(url, access_token, params.get('data'),
-                                             params.get('oauth_body_hash'), headers)
+            response = self.oauth_client.put(url, access_token, params.get('data'), headers)
         elif method == 'post':
             response = self.oauth_client.post(url, params, access_token)
         else:
@@ -358,24 +327,26 @@ class MendeleyClient(object):
     def get_access_token(self):
         return self.access_token
 
-    def get_auth_url(self,callback_url='oob'):
+    def get_auth_url(self,callback_url="http://localhost"):
         """Returns an auth url"""
-        request_token = self.oauth_client.request_token()
-        auth_url = self.oauth_client.authorize(request_token,callback_url)
-        return (request_token,auth_url)
+        return self.oauth_client.get_authorize_url(callback_url)
 
-    def verify_auth(self, request_token, verifier):
+    def exchange_access_token(self, code):
         """Generate an access_token from a request_token generated by
            get_auth_url and the verifier received from the server"""
-        request_token.set_verifier(verifier)
-        access_token = self.oauth_client.access_token(request_token)
+        try :
+            access_token = self.oauth_client.get_access_token(code, "http://localhost")
+            print access_token
+        except Exception as e:
+            print "exchange_access_token"
+            print e
         return access_token
 
     def interactive_auth(self):
-        request_token, auth_url = self.get_auth_url()
+        auth_url = self.get_auth_url()
         print 'Go to the following url to auth the token:\n%s' % (auth_url,)
-        verifier = raw_input('Enter verification code: ')
-        self.set_access_token(self.verify_auth(request_token, verifier))
+        code = raw_input('Enter code: ')
+        self.set_access_token(self.exchange_access_token(code))
 
 def create_client(config_file="config.json", keys_file=None, account_name="test_account"):
     # Load the configuration file
@@ -385,14 +356,14 @@ def create_client(config_file="config.json", keys_file=None, account_name="test_
         sys.exit(1)
 
     # create a client and load tokens from the pkl file
-    host = "api.mendeley.com"
+    host = "api-oauth2.mendeley.com"
     if hasattr(config, "host"):
         host = config.host
 
     if not keys_file:
         keys_file = "keys_%s.pkl"%host
 
-    client = MendeleyClient(config.api_key, config.api_secret, {"host":host})
+    client = MendeleyClient(config.client_id, config.client_secret, {"host":host})
     tokens_store = MendeleyTokensStore(keys_file)
 
     # configure the client to use a specific token
